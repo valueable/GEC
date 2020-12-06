@@ -37,11 +37,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'gec_backend'
 ]
 
+CORS_ORIGIN_ALLOW_ALL = True
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -54,8 +57,8 @@ ROOT_URLCONF = 'GEC.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
-        ,
+        #'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': ['frontend/dist'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -76,8 +79,11 @@ WSGI_APPLICATION = 'GEC.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'gec',
+        'USER':'root',
+        'PASSWORD':'990405',
+        'HOST':'127.0.0.1',
     }
 }
 
@@ -119,3 +125,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# set for vue.js
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'frontend/dist/static'),
+]
