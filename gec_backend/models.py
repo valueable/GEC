@@ -11,6 +11,7 @@ class User(models.Model):
     avatar = models.CharField(max_length=100, default="")
     # 邮箱，可以为空
     email = models.EmailField(default="")
+    type = models.ManyToManyField('Type', related_name='errortype')
 
 
 class Sentence(models.Model):

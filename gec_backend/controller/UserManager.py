@@ -19,7 +19,7 @@ def createUser(userName, password):
     user = User(userName=userName, password=Util.cryToMD5(password))
 
     user.save()
-    return ("create user succeed", user)
+    return ("succeed", user)
 
 
 def login(userName, password):
@@ -38,7 +38,7 @@ def login(userName, password):
         realPassword = user.password
         # realPassword = user.password
         if (realPassword == Util.cryToMD5(password)):
-            return ("login succeed", user)
+            return ("succeed", user)
         else:
             return ("wrong password for user " + userName, None)
 
@@ -56,7 +56,7 @@ def getUserByID(userID):
     except:
         return ("error ! no user with id = " + str(userID), None)
     else:
-        return ("get user succeed", user)
+        return ("succeed", user)
 
 
 def delUserByID(curUserID, delUserID):
@@ -77,10 +77,10 @@ def delUserByID(curUserID, delUserID):
         if (curUserID != delUserID):
             return "you have no permission to del this user"
         delUser.delete()
-        return "delete succeed"
+        return "succeed"
 
 
-def changeInfo(userID, userName, avatar, email, pwd):
+def changeInfo(userID, userName, avatar, email):
     '''
     描述：
     更改用户user的基本信息
@@ -89,13 +89,11 @@ def changeInfo(userID, userName, avatar, email, pwd):
     '''
 
     user = User.objects.get(id=userID)
-    md5pwd = Util.cryToMD5(pwd)
     user.userName = userName
     user.avatar = avatar
     user.email = email
-    user.password = md5pwd
     user.save()
-    return "change info succeed"
+    return "succeed"
 
 
 def changePassword(userID, oldPassword, newPassword):
@@ -114,16 +112,17 @@ def changePassword(userID, oldPassword, newPassword):
     if (user.password == Util.cryToMD5(oldPassword)):
         user.password = Util.cryToMD5(newPassword)
         user.save()
-        return "change pwd succeed"
+        return "succeed"
     pass
 
-'''
-    描述：
-    验证输入的密码是否正确
-    返回值：
-    errorMessage: string
-    '''
+
 def isValide(userId, pwd):
+    '''
+        描述：
+        验证输入的密码是否正确
+        返回值：
+        errorMessage: string
+        '''
     err, user = getUserByID(userId)
     print(user.password)
     md5pwd = Util.cryToMD5(pwd)
