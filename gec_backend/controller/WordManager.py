@@ -9,11 +9,11 @@ def getWordByUserID(userID):
     '''
     user = User.objects.get(id=userID)
     try:
-        words = user.add_words.all()
+        words = user.add_words.filter(is_delete=False).order_by('-use_counts')
     except:
         return 'fail to fetch words', None
     else:
-        return 'succeed', [word for word in words if word.is_delete is False]
+        return 'succeed', words
 
 
 def addWords(userID, word):
@@ -32,7 +32,7 @@ def addWords(userID, word):
         return 'succeed', newword
 
 
-def searchWord(userID, word):
+def searchWord(userID, wordName):
     '''
     查找用户词表中的word
     :param userID:
@@ -42,8 +42,9 @@ def searchWord(userID, word):
     err, words = getWordByUserID(userID)
     if err == 'succeed':
         for w in words:
-            if w.word == word:
+            if w.word == wordName:
                 return 'succeed', w
+        return 'not found', None
     else:
         return 'failed to find word', None
 
@@ -62,3 +63,31 @@ def delWord(wordID):
         return 'delete failed'
     else:
         return 'succeed'
+
+
+def getMostUsedWord(userID):
+    '''
+    获取使用最多的单词前五
+    :param userID:
+    :return:
+    '''
+    user = User.objects.get(id=userID)
+    try:
+        words = user.add_words.filter(is_delete=False).order_by('-use_counts')
+    except:
+        return 'fail to fetch words', None
+    else:
+        return 'succeed', words[:5]
+
+
+def updateWord(wordID, cnt):
+    word = Word.objects.get(id=wordID)
+    try:
+        word.use_counts += cnt
+        word.save()
+    except:
+        return 'update failed'
+    else:
+        return 'succeed'
+
+

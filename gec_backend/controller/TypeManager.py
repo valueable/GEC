@@ -15,14 +15,15 @@ def getTypeByID(typeID):
 
 
 
-def getTypeByName(typeName):
+def getTypeByName(typeName, userID):
     '''
     通过标签名获取type
     :param typeName:
     :return:
     '''
     try:
-        type = Type.objects.get(type=typeName)
+        user = User.objects.get(id=userID)
+        type = user.type.get(type=typeName)
     except:
         return 'no type named ' + typeName, None
     else:
@@ -36,26 +37,27 @@ def addType(typeName, userID):
     :return:
     '''
     try:
-        type = Type.objects.get(type=typeName)
+        user = User.objects.get(id=userID)
     except:
+        return 'add failed', None
+    else:
         # 没有则新建
         try:
-            user = User.objects.get(id=userID)
-            newtype = Type(type=typeName, error_counts=0)
+            type = user.type.get(type=typeName)
+        except:
+            newtype = Type(type=typeName, error_counts=1)
             newtype.save()
             user.type.add(newtype)
             user.save()
-
-        except:
-            return 'add failed', None
-        else:
             return 'succeed', newtype
-    else:
-        user = User.objects.get(id=userID)
-        user.type.add(type)
-        user.save()
-        return 'succeed', type
+        else:
+            return 'succeed', type
 
+def updateType(typeName, userID, cnt):
+    err, type = addType(typeName, userID)
+    type.error_counts += cnt
+    type.save()
+    return 'succeed'
 
 def getTypeCntRank(userID):
     '''
@@ -64,12 +66,11 @@ def getTypeCntRank(userID):
     '''
     try:
         user = User.objects.get(id=userID)
-        typeList = user.type.order_by('-error_counts')
-        resList = [type for type in typeList if type.error_counts != 0]
+        typeList = user.type.all().order_by('-error_counts')
     except:
         return 'failed to get type rank', None
     else:
-        return 'succeed', resList
+        return 'succeed', typeList
 
 
 
