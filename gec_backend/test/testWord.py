@@ -15,33 +15,36 @@ class TestWordManager(TestCase):
         err, word = WordManager.addWords(self.user.id, 'fottball')
         self.assertEqual(err, 'succeed')
         err, word1 = WordManager.addWords(self.user.id, 'facebook')
-        err = WordManager.updateWord(word.id, 5)
+        err = WordManager.updateWord(word1.word, self.user.id, 5)
         self.assertEqual(err, 'succeed')
 
-        err, w = WordManager.searchWord(self.user.id, "facebook")
+        err, words = WordManager.searchWord(self.user.id, "f")
         self.assertEqual(err, 'succeed')
-        print(w.word, "====")
+        for w in words:
+            print('aaa', w.word, w.use_counts)
+
         err, words = WordManager.getWordByUserID(self.user.id)
         for w in words:
             print(w.word, w.use_counts)
         self.assertEqual(err, 'succeed')
         print("========")
-        err = WordManager.delWord(word1.id)
+        err, word = WordManager.delWord(word1.id)
         self.assertEqual(err, 'succeed')
+
 
         err, word = WordManager.addWords(user1.id, 'iphone')
         err, word = WordManager.addWords(user1.id, 'huawei')
-        err = WordManager.updateWord(word.id, 10)
+        err = WordManager.updateWord(word.word, user1.id, 10)
 
         err, words = WordManager.getMostUsedWord(user1.id)
         self.assertEqual(err, 'succeed')
         for word in words:
             print(word.word, word.use_counts)
 
-        err = WordManager.delWord(word1.id)
+        err, word22 = WordManager.delWord(word1.id)
         self.assertEqual(err, 'succeed')
-
-        err, _ = WordManager.searchWord(self.user.id, "facebook")
+        print(word22.is_delete)
+        err, w = WordManager.searchWord(self.user.id, word22.word)
         self.assertNotEqual(err, 'succeed')
 
         err, words = WordManager.getWordByUserID(user1.id)

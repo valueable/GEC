@@ -200,13 +200,31 @@ def getSentenceByType(req):
     return JsonResponse(response)
 
 
+def getTypeBySentence(req):
+    '''
+    获取该错句集的错误type
+    '''
+    response = {}
+    senId = req.GET.get('senId')
+    info, types = TypeManager.getTypeBySentence(senId)
+    if info == 'succeed':
+        response['list'] = json.loads(serializers.serialize("json", types))
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====get types via sentence here")
+    return JsonResponse(response)
+
+
 def correctSentence(req):
     response = {}
     userId = req.POST.get('userId')
     orgsentences = req.POST.get('orgsentences')
     wordList = WordManager.getWordByUserID(userId)
     # 改错
-    correctList, notes, dics, corrcnt, use_count = predict.predict_for_sentence(orgsentences, wordList)
+    correctList, notes, dics, corrcnt, use_countDic = predict.predict_for_sentence(orgsentences, wordList)
     corrects = " ".join(correctList)
     types = [str(k) for k in dics.keys()]
     # 添加改错记录， 加上对应标签
@@ -216,6 +234,12 @@ def correctSentence(req):
             # 更新错误类型数
             err = TypeManager.updateType(t, userId, len(dics[t]))
             if err != 'succeed':
+                response['msg'] = 'error'
+                response['err_num'] = 1
+                return JsonResponse(response)
+        for items in use_countDic:
+            info = WordManager.updateWord(items[0], userId, items[1])
+            if info != 'succeed':
                 response['msg'] = 'error'
                 response['err_num'] = 1
                 return JsonResponse(response)
@@ -231,6 +255,110 @@ def correctSentence(req):
         response['msg'] = 'error'
         response['err_num'] = 1
         return JsonResponse(response)
+
+
+def deleteSentences(req):
+    response = {}
+    senId = req.POST.get('senId')
+    info = SenManager.delSentences(senId)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====delete sentence via senID here")
+    return JsonResponse(response)
+
+
+def addWord(req):
+    response = {}
+    userId = req.POST.get('userId')
+    word = req.POST.get('word')
+    err, _ = WordManager.addWords(userId, word)
+    if err == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====add words here")
+    return JsonResponse(response)
+
+
+def getOftenTypes(req):
+    response = {}
+    userId = req.GET.get('userId')
+    info, typeList = TypeManager.getTypeCntRank(userId)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+        response['list'] = json.loads(serializers.serialize("json", typeList))
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====get types rank here")
+    return JsonResponse(response)
+
+
+def getMostUserWords(req):
+    response = {}
+    userId = req.GET.get('userId')
+    info, wordList = WordManager.getMostUsedWord(userId)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+        response['list'] = json.loads(serializers.serialize("json", wordList))
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====get words rank here")
+    return JsonResponse(response)
+
+
+def searchWord(req):
+    response = {}
+    userId = req.POST.get('userId')
+    word = req.POST.get('word')
+    info, words = WordManager.searchWord(userId, word)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+        response['list'] = json.loads(serializers.serialize("json", words))
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====search words here")
+    return JsonResponse(response)
+
+
+def getUserVocab(req):
+    response = {}
+    userId = req.GET.get('userId')
+    info, vocab = WordManager.getWordByUserID(userId)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+        response['list'] = json.loads(serializers.serialize("json", vocab))
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====get all words here")
+    return JsonResponse(response)
+
+
+def delWord(req):
+    response = {}
+    wordId = req.POST.get('wordId')
+    info, _ = WordManager.delWord(wordId)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['msg'] = 'error'
+        response['err_num'] = 1
+    print(response, "=====delete word here")
+    return JsonResponse(response)
 
 
 

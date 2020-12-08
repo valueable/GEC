@@ -321,7 +321,8 @@ class GecBERTModel(object):
                                                sugg_token)
                 if not action:
                     tokens[i-1] = spell.correction(token)
-                    all_dics['Spell'].append(token+' -> '+tokens[i-1])
+                    if token != tokens[i-1]:
+                        all_dics['Spell'].append(token + ' -> ' + tokens[i - 1])
                     continue
                 edits.append(action)
                 if sugg_token.startswith('$APPEND'):

@@ -1,4 +1,4 @@
-from gec_backend.models import Type, User
+from gec_backend.models import Type, User, Sentence
 
 def getTypeByID(typeID):
     '''
@@ -32,6 +32,7 @@ def getTypeByName(typeName, userID):
 
 def addType(typeName, userID):
     '''
+    由 addsentence调用
     给指定用户添加标签
     :param typeName:
     :return:
@@ -53,11 +54,14 @@ def addType(typeName, userID):
         else:
             return 'succeed', type
 
+
 def updateType(typeName, userID, cnt):
     err, type = addType(typeName, userID)
     type.error_counts += cnt
     type.save()
     return 'succeed'
+
+
 
 def getTypeCntRank(userID):
     '''
@@ -71,6 +75,17 @@ def getTypeCntRank(userID):
         return 'failed to get type rank', None
     else:
         return 'succeed', typeList
+
+def getTypeBySentence(senID):
+    '''
+    通过sentence获取type
+    '''
+    try:
+        sen = Sentence.objects.get(id=senID)
+    except:
+        return 'wrong sen id', None
+    else:
+        return 'succeed', sen.error_type.all()
 
 
 

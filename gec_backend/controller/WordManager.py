@@ -24,29 +24,31 @@ def addWords(userID, word):
     '''
     user = User.objects.get(id=userID)
     try:
+        word = user.add_words.get(word=word)
+    except:
         newword = Word(word=word, use_counts=0, is_delete=False, user=user)
         newword.save()
-    except:
-        return 'fail to add word', None
-    else:
         return 'succeed', newword
+    else:
+        return 'succeed', word
 
 
 def searchWord(userID, wordName):
     '''
-    查找用户词表中的word
+    模糊查找用户词表中的word
     :param userID:
     :param word:
     :return:
     '''
-    err, words = getWordByUserID(userID)
-    if err == 'succeed':
-        for w in words:
-            if w.word == wordName:
-                return 'succeed', w
-        return 'not found', None
-    else:
+    try:
+        allWords = Word.objects.filter(word__icontains=wordName).filter(user_id=userID).filter(is_delete=False)\
+            .order_by('-use_counts')
+    except:
         return 'failed to find word', None
+    else:
+        if len(allWords) == 0:
+            return 'failed to find word', None
+        return 'succeed', allWords
 
 
 def delWord(wordID):
@@ -55,14 +57,14 @@ def delWord(wordID):
     :param wordID:
     :return:
     '''
-    word = Word.objects.get(id=wordID)
     try:
+        word = Word.objects.get(id=wordID)
+    except:
+        return 'delete failed', None
+    else:
         word.is_delete = True
         word.save()
-    except:
-        return 'delete failed'
-    else:
-        return 'succeed'
+        return 'succeed', word
 
 
 def getMostUsedWord(userID):
@@ -80,11 +82,11 @@ def getMostUsedWord(userID):
         return 'succeed', words[:5]
 
 
-def updateWord(wordID, cnt):
-    word = Word.objects.get(id=wordID)
+def updateWord(word, userID, cnt):
     try:
-        word.use_counts += cnt
-        word.save()
+        err, newword = addWords(userID, word)
+        newword.use_counts += cnt
+        newword.save()
     except:
         return 'update failed'
     else:

@@ -5,7 +5,7 @@ import time
 from gector.utils.helpers import read_lines
 from gector.gector.gec_model import GecBERTModel
 from spellchecker import SpellChecker
-
+from collections import defaultdict
 
 
 # 对目标文件进行预测 返回改错个数以及更改后的句子
@@ -60,18 +60,18 @@ def predict_for_sentence(sentences, wordList):
     batch = []
     notes = set()
     correctList = []
-    use_count = 0
+    use_count = defaultdict(int)
     for sentence in sentences:
         tokens = sentence.split()
         for tok in tokens:
             if tok in wordList:
-                use_count += 1
+                use_count[tok] += 1
         batch.append(tokens)
     st = time.time()
     preds, cnt, labels, dics = model.handle_batch(batch, spell)
-    ed = time.time()
     for i in labels:
         error_labels.add(i)
+    ed = time.time()
     for idx in range(len(preds)):
         print("after correct: ", [" ".join(x) for x in preds][idx])
         print("correct errors: ", cnt)
@@ -99,7 +99,9 @@ def predict_for_sentence(sentences, wordList):
         print(note)
     dics['Spell'] = list(set(dics['Spell']))
     print(dics)
-    return correctList, list(notes), dics, cnt, use_count
+    ed1 = time.time()
+    print(f'total time: {ed1 - st}')
+    return correctList, list(notes), dics, cnt, [uc for uc in use_count.items()]
 
 
 

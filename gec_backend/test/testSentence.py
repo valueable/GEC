@@ -45,6 +45,10 @@ class TestSenManager(TestCase):
         err, lists = TypeManager.getTypeCntRank(self.user.id)
         for l in lists:
             print(l.type, l.error_counts)
+        print("+++")
+        err, typelist = TypeManager.getTypeBySentence(newsen.id)
+        for l in typelist:
+            print(l.type)
     def testDel(self):
         print("=======  test delete")
         err2, newsen = SenManager.addSentences(self.user.id, 'org sentence', 'correct sentence',
