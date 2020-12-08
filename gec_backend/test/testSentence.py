@@ -34,7 +34,7 @@ class TestSenManager(TestCase):
         err3, newsen = SenManager.addSentences(newuser.id, 'org sentence222', 'correct sentence222',
                                                ['spell', 'case', 'verb'])
         err, type = TypeManager.getTypeByName('spell', newuser.id)
-        err5, resList = SenManager.getSentencesByTypeID(type.id, newuser.id)
+        err5, resList = SenManager.getSentencesByTypeName('replace', self.user.id)
         self.assertEqual(err5, 'succeed')
         for l in resList:
             print(l.org_sen, l.corr_sen, l.is_delete, [t.type for t in l.error_type.all()], l.dateTime)
@@ -70,7 +70,8 @@ class TestSenManager(TestCase):
         for l in lists:
             print(l.org_sen, l.corr_sen, l.is_delete, [t.type for t in l.error_type.all()], l.dateTime)
         err0, type = TypeManager.getTypeByName('case', self.user.id)
-        err5, resList = SenManager.getSentencesByTypeID(type.id, self.user.id)
+        print("++++")
+        err5, resList = SenManager.getSentencesByTypeName('case', self.user.id)
         self.assertEqual(err5, 'succeed')
         for l in resList:
             print(l.org_sen, l.corr_sen, l.is_delete, [t.type for t in l.error_type.all()], l.dateTime)

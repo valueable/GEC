@@ -80,7 +80,7 @@ def delUserByID(curUserID, delUserID):
         return "succeed"
 
 
-def changeInfo(userID, userName, avatar, email):
+def changeInfo(userID, userName, pwd, avatar, email):
     '''
     描述：
     更改用户user的基本信息
@@ -90,6 +90,7 @@ def changeInfo(userID, userName, avatar, email):
 
     user = User.objects.get(id=userID)
     user.userName = userName
+    user.password = pwd
     user.avatar = avatar
     user.email = email
     user.save()

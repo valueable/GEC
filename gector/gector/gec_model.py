@@ -13,10 +13,10 @@ from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
 from allennlp.nn import util
 
-from gector.bert_token_embedder import PretrainedBertEmbedder
-from gector.seq2labels_model import Seq2Labels
-from gector.wordpiece_indexer import PretrainedBertIndexer
-from utils.helpers import PAD, UNK, get_target_sent_by_edits, START_TOKEN, apply_reverse_transformation
+from gector.gector.bert_token_embedder import PretrainedBertEmbedder
+from gector.gector.seq2labels_model import Seq2Labels
+from gector.gector.wordpiece_indexer import PretrainedBertIndexer
+from gector.utils.helpers import PAD, UNK, get_target_sent_by_edits, START_TOKEN, apply_reverse_transformation
 
 from spellchecker import SpellChecker
 

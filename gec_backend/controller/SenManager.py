@@ -37,24 +37,20 @@ def getSentencesByUserID(userID):
         return 'wrong user id: ' + userID, None
 
 
-def getSentencesByTypeID(typeID, userID):
+def getSentencesByTypeName(typeName, userID):
     '''
     查询错误类型标签时，获取对应标签出错的句子
     :param typeID:
     :return:
     '''
-    err, types = TypeManager.getTypeByID(typeID)
+    err, types = TypeManager.getTypeByName(typeName, userID)
     if err == 'succeed':
         try:
-            senList = types.err_type.all().order_by('-dateTime')
+            senList = types.err_type.filter(is_delete=False).order_by('-dateTime')
         except:
             return 'no data yet', None
         else:
-            resList = []
-            for sen in senList:
-                if sen.user_id == userID and sen.is_delete is False:
-                    resList.append(sen)
-            return 'succeed', resList
+            return 'succeed', senList
 
 
 def addSentences(userID, org, corr, errTypes):

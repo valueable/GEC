@@ -2,23 +2,10 @@
 import sys
 import argparse
 import time
-from utils.helpers import read_lines
-from gector.gec_model import GecBERTModel
+from gector.utils.helpers import read_lines
+from gector.gector.gec_model import GecBERTModel
 from spellchecker import SpellChecker
 
-
-class Speller:
-    def __init__(self):
-        self.spell = SpellChecker()
-
-    def add(self, str):
-        self.spell.word_frequency.add(str)
-
-    def remove(self, str):
-        self.spell.word_frequency.remove(str)
-
-    def correction(self, str):
-        return self.spell.correction(str)
 
 
 # 对目标文件进行预测 返回改错个数以及更改后的句子
@@ -49,14 +36,36 @@ def predict_for_file(input_file, output_file, model, spell, batch_size=32):
     return cnt_corrections, dic, labels
 
 
-def predict_for_sentence(sentences, model, spell):
+def predict_for_sentence(sentences, wordList):
     # 准备当作后端接口
+    model_path = 'E://pycharm//gector//models//pretrained_gectors//xlnet_0_gector.th'
+    vocab_path = 'E://pycharm//gector//data//output_vocabulary'
+    model = GecBERTModel(vocab_path=vocab_path,
+                         model_paths=[model_path],
+                         max_len=50, min_len=3,
+                         iterations=5,
+                         min_error_probability=0.0,
+                         min_probability=0.0,
+                         lowercase_tokens=0,
+                         model_name='xlnet',
+                         special_tokens_fix=0,
+                         log=False,
+                         confidence=0,
+                         is_ensemble=0,
+                         )
+    spell = SpellChecker()
+    for word in wordList:
+        spell.word_frequency.add(word)
     error_labels = set()
     batch = []
     notes = set()
-
+    correctList = []
+    use_count = 0
     for sentence in sentences:
         tokens = sentence.split()
+        for tok in tokens:
+            if tok in wordList:
+                use_count += 1
         batch.append(tokens)
     st = time.time()
     preds, cnt, labels, dics = model.handle_batch(batch, spell)
@@ -66,6 +75,8 @@ def predict_for_sentence(sentences, model, spell):
     for idx in range(len(preds)):
         print("after correct: ", [" ".join(x) for x in preds][idx])
         print("correct errors: ", cnt)
+        corr = [" ".join(x) for x in preds][idx]
+        correctList.append(corr)
         print(f'inference time: {ed - st}')
     for i in error_labels:
         if i.startswith('$REPLACE'):
@@ -88,6 +99,7 @@ def predict_for_sentence(sentences, model, spell):
         print(note)
     dics['Spell'] = list(set(dics['Spell']))
     print(dics)
+    return correctList, list(notes), dics, cnt, use_count
 
 
 
@@ -108,7 +120,7 @@ def main(args):
                          is_ensemble=args.is_ensemble,
                          weights=args.weights
                          )
-    spell = Speller()
+    spell = SpellChecker()
     cnt_corrections, dic, edits = predict_for_file(args.input_file, args.output_file, model, spell,
                                        batch_size=args.batch_size)
     # evaluate with m2 or ERRANT
@@ -116,13 +128,6 @@ def main(args):
         for key in dic:
             print("错误句子: {key} 更正后:{value}".format(key=key, value=dic[key]))
     print(f"Produced overall corrections: {cnt_corrections}")
-    sentences = []
-    sentence = "She see Tom is catched by policeman in park at last night."
-    sentences.append(sentence)
-    sentences.append("i likes running. reading and playying fottball")
-    sentences.append("I am a stdent.")
-    sentences.append("A ten years old boy go school")
-    predict_for_sentence(sentences, model, spell)
 
 
 if __name__ == '__main__':
@@ -197,3 +202,4 @@ if __name__ == '__main__':
     main(args)
     time_end = time.time()
     print("time in total : {times}s".format(times=time_end-time_start))
+
