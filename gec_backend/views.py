@@ -2,7 +2,7 @@ from django.shortcuts import render
 
 from gec_backend.controller import UserManager
 from gec_backend.controller import WordManager
-from gec_backend.controller import  TypeManager
+from gec_backend.controller import TypeManager
 from gec_backend.controller import SenManager
 from gec_backend.controller import Util
 
@@ -49,7 +49,7 @@ def createUser(req):
     if (avatar == ""):
         avatar = "https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
 
-    err = UserManager.changeInfo(curUser.id, curUser.userName,
+    err = UserManager.changeInfo(curUser.id, curUser.userName, password,
                                   avatar, email)
 
     if (err != 'succeed'):
@@ -220,14 +220,27 @@ def getTypeBySentence(req):
 
 def correctSentence(req):
     response = {}
-    userId = req.POST.get('userId')
-    orgsentences = req.POST.get('orgsentences')
-    wordList = WordManager.getWordByUserID(userId)
+    userId = int(req.GET.get('userId'))
+    orgsentences = req.GET.get('orgsentences')
+    sentences = orgsentences.split('\n')
+    # sentences.append(orgsentences)
+    print('++++')
+    _, wordList = WordManager.getWordByUserID(userId)
     # 改错
-    correctList, notes, dics, corrcnt, use_countDic = predict.predict_for_sentence(orgsentences, wordList)
+    correctList, notes, dics, corrcnt, use_countDic = predict.predict_for_sentence(sentences, wordList)
     corrects = " ".join(correctList)
     types = [str(k) for k in dics.keys()]
     # 添加改错记录， 加上对应标签
+    if userId == 0:
+        print(";;;;;;")
+        # response['notes'] = json.dumps(notes)
+        response['error_counts'] = corrcnt
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+        response['correctSentenceList'] = correctList
+        response['correctDetail'] = dics
+        print(response, "=====correct sentences here but user not login=========")
+        return JsonResponse(response)
     err, _ = SenManager.addSentences(userId, orgsentences, corrects, types)
     if err == 'succeed':
         for t in types:
@@ -243,7 +256,7 @@ def correctSentence(req):
                 response['msg'] = 'error'
                 response['err_num'] = 1
                 return JsonResponse(response)
-        response['notes'] = notes
+        # response['notes'] = json.dumps(notes)
         response['error_counts'] = corrcnt
         response['msg'] = 'succeed'
         response['err_num'] = 0
@@ -273,8 +286,8 @@ def deleteSentences(req):
 
 def addWord(req):
     response = {}
-    userId = req.POST.get('userId')
-    word = req.POST.get('word')
+    userId = req.GET.get('userId')
+    word = req.GET.get('word')
     err, _ = WordManager.addWords(userId, word)
     if err == 'succeed':
         response['msg'] = 'succeed'

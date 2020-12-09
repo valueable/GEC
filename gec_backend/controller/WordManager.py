@@ -7,12 +7,12 @@ def getWordByUserID(userID):
     :param userID:
     :return:
     '''
-    user = User.objects.get(id=userID)
     try:
-        words = user.add_words.filter(is_delete=False).order_by('-use_counts')
+        user = User.objects.get(id=userID)
     except:
-        return 'fail to fetch words', None
+        return 'fail to fetch words', []
     else:
+        words = user.add_words.filter(is_delete=False).order_by('-use_counts')
         return 'succeed', words
 
 

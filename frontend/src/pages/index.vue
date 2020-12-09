@@ -1,0 +1,133 @@
+<template>
+ <div id="index">
+   <top />
+<el-container heigth = "100%" >
+
+          <el-header style="text-align: center;font-size: x-large; margin-top: 30px; background: white" >
+              <h style="text-align: center">语法纠错</h>
+          </el-header>
+ <el-container >
+<el-main>
+<el-container>
+  <el-input
+  type="textarea"
+  placeholder="请输入内容"
+  v-model="error_sentence"
+  maxlength="300"
+  show-word-limit
+  :rows="10"
+  style="font-size: 20px"
+> </el-input>
+    <el-input
+  type="textarea"
+  placeholder="改错结果"
+  v-model="correct_sentence"
+  :rows="10"
+  disabled="true"
+  style="font-size: 20px"
+>
+</el-input>
+</el-container>
+  <el-container>
+    <el-button type="primary" style="margin-left: 46%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
+  </el-container>
+<el-container>
+  <el-carousel :interval="4000" type="card" style="width: 100%" v-if="tmpflag==1" height="300px" >
+    <el-carousel-item v-for="(value, key, index) in detailDic" :key="item" v-if="value.length != 0">
+      <h3 class="medium">
+
+        <el-header height="100px" style="background: whitesmoke">
+        <h style="text-align: center; height: 40%" >
+                {{key}}
+              </h>
+          </el-header>
+
+      <el-header height="100px" style="background: white">
+        <h style="text-align: center; color: #F56C6C" >
+                <li v-for=" v in value"> {{ v }}
+                  <el-button type="primary" style="alignment: center; margin-left: 50px"
+                                                             v-if="key=='Spell'">
+                  添加到词表<i class="el-icon-plus el-icon--right"></i></el-button></li>
+
+              </h>
+      </el-header>
+
+        <el-header height="100px" style="background: white">
+      </el-header>
+
+      </h3>
+
+    </el-carousel-item>
+  </el-carousel>
+</el-container>
+</el-main>
+
+
+         </el-container >
+      </el-container>
+ </div>
+</template>
+ <style>
+  .el-header {
+    background-color: #B3C0D1;
+    color: #333;
+    line-height: 60px;
+  }
+
+  .el-aside {
+    color: #333;
+  }
+
+</style>
+
+
+<script>
+
+import top from '../components/topNav'
+export default {
+  name: 'index',
+  components: {
+      top
+  },
+mounted: function(){
+        this.getCurUserID()
+    },
+  data () {
+      return {
+        error_sentence: '',
+        correct_sentence: '',
+          detailDic: {},
+        userId: 0,
+        tmpflag : 0,
+      }
+    },
+  methods: {
+    getCurUserID(){
+        this.$http.get('/api/getCurUserID')
+                  .then((response)=>{
+                    var res1 = JSON.parse(response.bodyText)
+                      if(res1['err_num']==0){
+                          this.userId=res1['userID'];
+                          this.getCurUser()
+                      }
+              })
+      },
+      correct:function () {
+        this.$http.get('/api/correctSentence?userId='+this.userId+'&orgsentences='+this.error_sentence)
+          .then(function (response) {
+            var res1 = JSON.parse(response.bodyText);
+                    if(res1['err_num']==0){
+                      this.correct_sentence = ''
+                        for(var i = 0; i < res1['correctSentenceList'].length; i++){
+                          this.correct_sentence += res1['correctSentenceList'][i] + '\n';
+                        }
+                        this.tmpflag = 1
+                      this.detailDic = res1['correctDetail']
+
+                    }
+          })
+      }
+      }
+
+}
+</script>
