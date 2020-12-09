@@ -30,6 +30,10 @@ def addWords(userID, word):
         newword.save()
         return 'succeed', newword
     else:
+        if word.is_delete == True:
+            word.is_delete = False
+            word.use_counts = 0
+            word.save()
         return 'succeed', word
 
 

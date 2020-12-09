@@ -46,7 +46,9 @@ class TestWordManager(TestCase):
         print(word22.is_delete)
         err, w = WordManager.searchWord(self.user.id, word22.word)
         self.assertNotEqual(err, 'succeed')
-
+        err, w = WordManager.addWords(self.user.id, word22.word)
+        self.assertEqual(w.id, word22.id)
+        print(w.is_delete, w.id, word22.id, word22.is_delete)
         err, words = WordManager.getWordByUserID(user1.id)
         self.assertEqual(err, 'succeed')
         for w in words:
