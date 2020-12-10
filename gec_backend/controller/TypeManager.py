@@ -50,13 +50,13 @@ def addType(typeName, userID):
             newtype.save()
             user.type.add(newtype)
             user.save()
-            return 'succeed', newtype
+            return 'succeed', newtype, 'new'
         else:
-            return 'succeed', type
+            return 'succeed', type, 'old'
 
 
 def updateType(typeName, userID, cnt):
-    err, type = addType(typeName, userID)
+    err, type, _ = addType(typeName, userID)
     type.error_counts += cnt
     type.save()
     return 'succeed'

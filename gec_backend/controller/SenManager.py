@@ -65,22 +65,24 @@ def addSentences(userID, org, corr, errTypes):
     '''
     err, user = UserManager.getUserByID(userID)
     typelist = []
+    dic = {}
     if err == 'succeed':
         newSens = Sentence(user=user, org_sen=org, corr_sen=corr, is_delete=False)
         newSens.save()
         try:
             for errtype in errTypes:
-                err, type = TypeManager.addType(errtype, userID)
+                err, type, info = TypeManager.addType(errtype, userID)
+                dic[type.type] = info
                 typelist.append(type)
         except:
-            return 'add type failed', None
+            return 'add type failed', None, None
         else:
             if err == 'succeed':
                 for type in typelist:
                     newSens.error_type.add(type.id)
-                return 'succeed', newSens
+                return 'succeed', newSens, dic
             else:
-                return 'add type failed', None
+                return 'add type failed', None, None
     else:
         pass
 
@@ -91,13 +93,14 @@ def delSentences(senID):
     :param senID:
     :return:
     '''
-    sen = Sentence.objects.get(id=senID)
     try:
-        sen.is_delete = True
-        sen.save()
+        sen = Sentence.objects.get(id=senID)
     except:
+        print("?????")
         return 'del failed'
     else:
+        sen.is_delete = True
+        sen.save()
         return 'succeed'
 
 

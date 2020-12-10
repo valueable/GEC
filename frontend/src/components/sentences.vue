@@ -1,15 +1,18 @@
 <template>
-  <div id="post">
-    <el-row>
+  <div id="post" v-if="this.flag == 0">
+    <el-row >
 
 
-      <el-col :xs=22 :sm=22 :md=23 :lg=23 :xl=23>
-        <el-row>{{ item.content }}</el-row>
+      <el-col :xs=22 :sm=22 :md=24 :lg=24 :xl=24>
+  <el-row>
+            <el-col  style="color: #F56C6C; white-space: pre-wrap" :xs=11 :sm=11 :md=12 :lg=12 :xl=12 >{{ item.orgsentence }}</el-col>
+            <el-col  style="color: #67C23A; white-space: pre-wrap" :xs=11 :sm=11 :md=12 :lg=12 :xl=12>{{item.corrsentence}}</el-col>
+          </el-row>
         <el-link v-for="tag in tags" type="danger" :key="tag.index" style="margin-right: 10px" :href="tag.itemHref">#{{tag.itemName}}</el-link>
         <el-row>
 
           <el-col :span=4>
-            <el-button v-if="curUser==item.userID" icon="el-icon-delete" type="text" id='del' v-on:click="del">删除</el-button>
+            <el-button  icon="el-icon-delete" type="text" id='del' v-on:click="del">删除</el-button>
           </el-col>
         </el-row>
       </el-col>
@@ -31,6 +34,7 @@ export default {
   data: function () {
     return {
       tags: [],
+      flag: 0,
     }
   },
   computed: {
@@ -65,6 +69,7 @@ export default {
       }).then(() => {
         this.$http.get('/api/deleteSentences/?senId=' + this.item.senID)
                 .then(res => {
+                  this.flag = 1
                   this.$message({
                     type: "info",
                     message: res.bodyText

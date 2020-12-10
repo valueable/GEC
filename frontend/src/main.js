@@ -10,7 +10,13 @@ import VueResource from 'vue-resource'
 import echarts from 'echarts'
 
 import index from './pages/index'
-Vue.prototype.$echarts = echarts;
+import login from './pages/login'
+import register from './pages/register'
+import home from './pages/home'
+import searchType from './pages/searchType'
+import analyze from './pages/analyze'
+
+
 Vue.config.productionTip = false;
 Vue.use(VueRouter);
 Vue.use(VueResource);
@@ -23,14 +29,44 @@ axios.defaults.headers.post['Content-Type'] = 'application/json';
 const router = new VueRouter({
   routes: [
     {
+      path: '/',
+      name: 'init',
+      component: index
+    },
+    {
       path: '/index',
       name: 'index',
       component: index
     },
+    {
+      path: '/login',
+      name: 'login',
+      component: login
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: register
+    },
+    {
+      path: '/home',
+      name: 'home',
+      component: home
+    },
+    {
+      path: '/searchType/:key',
+      name: 'searchType',
+      component: searchType
+    },
+    {
+      path: '/analyze',
+      name: 'analyze',
+      component: analyze
+    },
 
   ],
   mode: 'history'
-})
+});
 new Vue({
   render: h => h(App),
   router,

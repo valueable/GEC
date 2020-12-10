@@ -60,12 +60,8 @@ def predict_for_sentence(sentences, wordList):
     batch = []
     notes = set()
     correctList = []
-    use_count = defaultdict(int)
     for sentence in sentences:
         tokens = sentence.split()
-        for tok in tokens:
-            if tok in wordList:
-                use_count[tok] += 1
         batch.append(tokens)
     st = time.time()
     preds, cnt, labels, dics = model.handle_batch(batch, spell)
@@ -101,7 +97,7 @@ def predict_for_sentence(sentences, wordList):
     print(dics)
     ed1 = time.time()
     print(f'total time: {ed1 - st}')
-    return correctList, list(notes), dics, cnt, [uc for uc in use_count.items()]
+    return correctList, list(notes), dics, cnt
 
 
 

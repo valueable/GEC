@@ -73,7 +73,7 @@ export default {
               this.$message({type:'error',message:"请输入搜索内容！",duration:600})
           }
           else{
-              window.location.href="/search/"+this.input1;
+              window.location.href="/searchType/"+this.input1;
           }
       },
       jumpTo: function(e){
@@ -86,7 +86,7 @@ export default {
                   this.$message({type:'error',message:"请先登录！",duration:600})
               }
               else{
-                  window.location.href="/person/"+this.userId;
+                  window.location.href="/home";
               }
           }
           else if(name=="错误分析"){
@@ -94,7 +94,7 @@ export default {
                   this.$message({type:'error',message:"请先登录！",duration:600})
               }
               else{
-                  window.location.href="/analyze/"+this.userId;
+                  window.location.href="/analyze";
               }
           }
       },

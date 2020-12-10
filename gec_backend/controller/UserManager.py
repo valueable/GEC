@@ -15,7 +15,7 @@ def createUser(userName, password):
         pass
     else:
         return ("user name has already been used", None)
-
+    print('???', Util.cryToMD5(password))
     user = User(userName=userName, password=Util.cryToMD5(password))
 
     user.save()
@@ -33,6 +33,7 @@ def login(userName, password):
     try:
         user = User.objects.get(userName=userName)
     except:
+        print('wrong name')
         return ("no user named " + userName, None)
     else:
         realPassword = user.password
@@ -40,6 +41,7 @@ def login(userName, password):
         if (realPassword == Util.cryToMD5(password)):
             return ("succeed", user)
         else:
+            print('wrong pwd')
             return ("wrong password for user " + userName, None)
 
 
@@ -90,7 +92,7 @@ def changeInfo(userID, userName, pwd, avatar, email):
 
     user = User.objects.get(id=userID)
     user.userName = userName
-    user.password = pwd
+    user.password = Util.cryToMD5(pwd)
     user.avatar = avatar
     user.email = email
     user.save()

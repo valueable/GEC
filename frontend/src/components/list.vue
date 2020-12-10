@@ -32,7 +32,7 @@ export default {
   },
   computed: {
     itemLink: function () {
-      return "/search/" + this.item.itemHref
+      return  this.item.itemHref
     },
   }
 

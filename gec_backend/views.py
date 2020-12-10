@@ -71,6 +71,7 @@ def login(req):
     err, curUser = UserManager.login(userName, password)
 
     if (err != "succeed"):
+        print('!!!!!!!')
         return HttpResponse(err)
 
     Util.setUserForSession(req, curUser.id)
@@ -102,7 +103,26 @@ def getUserByID(req):
     else:
         response['err_num'] = 1
         response['msg'] = 'error'
-    print(response, "===get User here")
+    print("===get User here")
+    return JsonResponse(response)
+
+
+def getUserNameByID(req):
+    """
+    根据ID获取用户名
+    """
+    response = {}
+    userId = str(req.GET.get('userId'))
+    err, user = UserManager.getUserByID(userId)
+    if err == 'succeed':
+        # convert queryset to json
+        response['user'] = user.userName
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['err_num'] = 1
+        response['msg'] = 'error'
+    print("===get User here")
     return JsonResponse(response)
 
 
@@ -226,36 +246,39 @@ def correctSentence(req):
     # sentences.append(orgsentences)
     print('++++')
     _, wordList = WordManager.getWordByUserID(userId)
+    wordList = [word.word for word in wordList]
+    print(wordList, '-----')
+    print(sentences, '-----')
     # 改错
-    correctList, notes, dics, corrcnt, use_countDic = predict.predict_for_sentence(sentences, wordList)
-    corrects = " ".join(correctList)
-    types = [str(k) for k in dics.keys()]
+    correctList, notes, dics, corrcnt = predict.predict_for_sentence(sentences, wordList)
+    corrects = "\n".join(correctList)
+    types = [str(k) for k in dics.keys() if len(dics[k]) > 0]
     # 添加改错记录， 加上对应标签
     if userId == 0:
-        print(";;;;;;")
-        # response['notes'] = json.dumps(notes)
         response['error_counts'] = corrcnt
         response['msg'] = 'succeed'
         response['err_num'] = 0
         response['correctSentenceList'] = correctList
         response['correctDetail'] = dics
+        print(orgsentences)
+        print(corrects)
         print(response, "=====correct sentences here but user not login=========")
         return JsonResponse(response)
-    err, _ = SenManager.addSentences(userId, orgsentences, corrects, types)
+    err, _, infodic = SenManager.addSentences(userId, orgsentences, corrects, types)
     if err == 'succeed':
         for t in types:
             # 更新错误类型数
-            err = TypeManager.updateType(t, userId, len(dics[t]))
+            if infodic[t] == 'old':
+                err = TypeManager.updateType(t, userId, len(dics[t]))
             if err != 'succeed':
                 response['msg'] = 'error'
                 response['err_num'] = 1
                 return JsonResponse(response)
-        for items in use_countDic:
-            info = WordManager.updateWord(items[0], userId, items[1])
-            if info != 'succeed':
-                response['msg'] = 'error'
-                response['err_num'] = 1
-                return JsonResponse(response)
+        for word in wordList:
+            for l in sentences:
+                if word in l:
+                    print('ok')
+                    err = WordManager.updateWord(word, userId, 1)
         # response['notes'] = json.dumps(notes)
         response['error_counts'] = corrcnt
         response['msg'] = 'succeed'
@@ -272,7 +295,7 @@ def correctSentence(req):
 
 def deleteSentences(req):
     response = {}
-    senId = req.POST.get('senId')
+    senId = req.GET.get('senId')
     info = SenManager.delSentences(senId)
     if info == 'succeed':
         response['msg'] = 'succeed'
@@ -288,6 +311,7 @@ def addWord(req):
     response = {}
     userId = req.GET.get('userId')
     word = req.GET.get('word')
+    word = word.split('->')[0].strip()
     err, _ = WordManager.addWords(userId, word)
     if err == 'succeed':
         response['msg'] = 'succeed'
@@ -302,6 +326,7 @@ def addWord(req):
 def getOftenTypes(req):
     response = {}
     userId = req.GET.get('userId')
+
     info, typeList = TypeManager.getTypeCntRank(userId)
     if info == 'succeed':
         response['msg'] = 'succeed'
@@ -372,6 +397,8 @@ def delWord(req):
         response['err_num'] = 1
     print(response, "=====delete word here")
     return JsonResponse(response)
+
+
 
 
 

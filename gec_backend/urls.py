@@ -36,5 +36,6 @@ urlpatterns = [
     path('getMostUserWords/', views.getMostUserWords, name = 'getMostUserWords'),
     path('searchWord/', views.searchWord, name = 'searchWord'),
     path('getUserVocab/', views.getUserVocab, name = 'getUserVocab'),
-    path('delWord/', views.delWord, name = 'delWord')
+    path('delWord/', views.delWord, name = 'delWord'),
+    path('getUserNameByID/', views.getUserNameByID, name = 'getUserNameByID')
 ]

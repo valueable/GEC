@@ -16,7 +16,7 @@
   maxlength="300"
   show-word-limit
   :rows="10"
-  style="font-size: 20px"
+  style="font-size: 20px;color: #3a8ee6"
 > </el-input>
     <el-input
   type="textarea"
@@ -24,12 +24,14 @@
   v-model="correct_sentence"
   :rows="10"
   disabled="true"
-  style="font-size: 20px"
+style="font-size: 20px;color: #3a8ee6"
+
 >
 </el-input>
 </el-container>
   <el-container>
-    <el-button type="primary" style="margin-left: 46%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
+    <el-button type="primary" style="margin-left: 40.5%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
+    <el-button type="primary"  @click="clean">清空<i class="el-icon-delete el-icon--right"></i></el-button>
   </el-container>
 <el-container>
   <el-carousel :interval="4000" type="card" style="width: 100%" v-if="tmpflag==1" height="300px" >
@@ -37,16 +39,17 @@
       <h3 class="medium">
 
         <el-header height="100px" style="background: whitesmoke">
-        <h style="text-align: center; height: 40%" >
+        <i class="s-opportunity"></i>
+          <h style="text-align: center; height: 40%" >
                 {{key}}
               </h>
           </el-header>
 
       <el-header height="100px" style="background: white">
         <h style="text-align: center; color: #F56C6C" >
-                <li v-for=" v in value"> {{ v }}
+                <li v-for=" v in value" > {{ v }}
                   <el-button type="primary" style="alignment: center; margin-left: 50px"
-                                                             v-if="key=='Spell'">
+                                                           @click="addWord(v)" v-if="key=='Spell'">
                   添加到词表<i class="el-icon-plus el-icon--right"></i></el-button></li>
 
               </h>
@@ -77,6 +80,12 @@
   .el-aside {
     color: #333;
   }
+   .rt-input /deep/ .el-input__inner {
+     color: #3a8ee6 !important;
+     font-size: 20px;
+     :rows: 10;
+
+   }
 
 </style>
 
@@ -126,8 +135,30 @@ mounted: function(){
 
                     }
           })
+      },
+    clean:function(){
+      this.error_sentence = ''
+      this.correct_sentence = ''
+      this.tmpflag = 0
+    },
+      addWord:function (word) {
+         if(this.userId == 0){
+          this.$message({type:'warning',message:"请您登陆",duration:600})
+         }
+         else{
+           this.$http.get('/api/addWord?userId='+this.userId+'&word='+word)
+             .then(function (response) {
+               var res1 = JSON.parse(response.bodyText);
+                    if(res1['err_num']==0){
+                      this.$message({type:'success',message:"添加",duration:600})
+
+                    }
+
+             })
+         }
       }
       }
 
 }
 </script>
+
