@@ -27,8 +27,8 @@
       </template>
     </el-table-column>
     </el-table>
+      <div v-if="data.length==0" style="margin-top: 20px">暂无搜索结果</div>
     </div>
-  <div v-if="data.length==0" style="margin-top: 20px">暂无搜索结果</div>
 </template>
 
 <script>

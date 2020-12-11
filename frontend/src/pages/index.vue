@@ -24,8 +24,7 @@
   v-model="correct_sentence"
   :rows="10"
   disabled="true"
-style="font-size: 20px;color: #3a8ee6"
-
+style="font-size: 20px;color: #3a8ee6; "
 >
 </el-input>
 </el-container>
@@ -80,12 +79,7 @@ style="font-size: 20px;color: #3a8ee6"
   .el-aside {
     color: #333;
   }
-   .rt-input /deep/ .el-input__inner {
-     color: #3a8ee6 !important;
-     font-size: 20px;
-     :rows: 10;
 
-   }
 
 </style>
 
