@@ -183,6 +183,21 @@ def changeInfo(req):
     return HttpResponse("succeed")
 
 
+def validatepwd(req):
+    response = {}
+    userId = str(req.POST.get('userId'))
+    pwd = (req.POST.get('pwd'))
+    print("view", pwd)
+    info = UserManager.isValide(userId, pwd)
+    if info == 'succeed':
+        response['msg'] = 'succeed'
+        response['err_num'] = 0
+    else:
+        response['err_num'] = 1
+        response['msg'] = 'error'
+    return JsonResponse(response)
+
+
 def getUserSentences(req):
     '''
     获取当前用户的错句集
@@ -387,7 +402,10 @@ def getUserVocab(req):
 
 def delWord(req):
     response = {}
-    wordId = req.POST.get('wordId')
+    curword = req.GET.get('wordName')
+    userID = req.GET.get('userID')
+    err, wordList = WordManager.getWordByUserID(userID)
+    wordId = [word.id for word in wordList if word.word == curword][0]
     info, _ = WordManager.delWord(wordId)
     if info == 'succeed':
         response['msg'] = 'succeed'

@@ -16,6 +16,8 @@ def getWordByUserID(userID):
         return 'succeed', words
 
 
+
+
 def addWords(userID, word):
     '''
     添加避免拼写差错的word
@@ -64,6 +66,7 @@ def delWord(wordID):
     try:
         word = Word.objects.get(id=wordID)
     except:
+        print('id', wordID)
         return 'delete failed', None
     else:
         word.is_delete = True

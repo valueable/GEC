@@ -150,7 +150,7 @@ mounted: function(){
              .then(function (response) {
                var res1 = JSON.parse(response.bodyText);
                     if(res1['err_num']==0){
-                      this.$message({type:'success',message:"添加",duration:600})
+                      this.$message({type:'success',message:"添加成功",duration:600})
 
                     }
 

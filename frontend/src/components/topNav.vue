@@ -6,6 +6,7 @@
         <el-button type="text" style="margin-left: 200px"  @click.native="jumpTo($event)" id="主页">主页</el-button>
         <el-button type="text" style="margin-left: 100px"  @click.native="jumpTo($event)" id="个人主页">个人主页</el-button>
         <el-button type="text" style="margin-left: 100px"  @click.native="jumpTo($event)" id="错误分析">错误分析</el-button>
+      <el-button type="text" style="margin-left: 100px"  @click.native="jumpTo($event)" id="我的词表">我的词表</el-button>
      <el-input placeholder="搜索点什么" prefix-icon="el-icon-search" v-model="input1" @keyup.enter.native="onSearch" style="margin-left:100px;width: 200px"></el-input>
 
 
@@ -95,6 +96,14 @@ export default {
               }
               else{
                   window.location.href="/analyze";
+              }
+          }
+          else if(name=="我的词表"){
+              if(this.userId==0){
+                  this.$message({type:'error',message:"请先登录！",duration:600})
+              }
+              else{
+                  window.location.href="/vocab";
               }
           }
       },

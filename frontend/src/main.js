@@ -15,6 +15,8 @@ import register from './pages/register'
 import home from './pages/home'
 import searchType from './pages/searchType'
 import analyze from './pages/analyze'
+import edituser from './pages/edituser'
+import vocab from './pages/vocab'
 
 
 Vue.config.productionTip = false;
@@ -62,6 +64,16 @@ const router = new VueRouter({
       path: '/analyze',
       name: 'analyze',
       component: analyze
+    },
+    {
+      path: '/edituser',
+      name: 'edituser',
+      component: edituser
+    },
+    {
+      path: '/vocab',
+      name: 'vocab',
+      component: vocab
     },
 
   ],
