@@ -10,6 +10,8 @@
 
 [Element UI文档](https://element.eleme.cn/#/zh-CN/component/installation)
 
+[GECToR 文档](https://github.com/grammarly/gector)
+
 ## 关于前端
 
 - 前端使用`@vue/cli`构建，主要代码为`.vue`格式。其中，`src`文件夹下的`App.vue`文件为前端文件的入口，其它文件则通过在该文件中使用组件的方式进行导入；
@@ -24,8 +26,13 @@
   - 通过`Vue.js`来绑定数据，并响应按钮与数据变化；
 
 
+## 关于gector
+- 使用allennlp框架和tranformers提供的预训练模型接口
+
+
 ## 环境
 
+#### 项目
 - Mysql
 - Python 3.7
 - pip (记得换源)
@@ -36,6 +43,12 @@
 - npm (可能能用yarn完全替代)
   - @vue/cli (用于搭建环境，运行可能不需要)
 - yarn (用于安装依赖和编译前端代码)(记得换源)
+
+#### GECToR
+```bash
+cd gector
+pip install -r requirements.txt
+```
 
 ## 运行步骤
 
@@ -72,16 +85,17 @@ python manage.py runserver
 ```
 
 .
-├── Miblog              //项目的Django配置文件
+├── GEC              //项目的Django配置文件
 │   ├── __init__.py
 │   ├── __pycache__
 │   ├── asgi.py
 │   ├── settings.py     //项目设置
 │   ├── urls.py         //路由
 │   └── wsgi.py
-├── backend
+├── gec_backend
 │   ├── __init__.py
 │   ├── __pycache__
+│   ├─— controller
 │   ├── admin.py
 │   ├── apps.py
 │   ├── migrations
@@ -99,6 +113,23 @@ python manage.py runserver
 │   ├── public
 │   ├── src             //实际的代码
 │   └── yarn.lock
+├—— gector
+│  ├─.idea
+│  │  └─inspectionProfiles
+│  ├─data               //词表等数据
+│  │  └─output_vocabulary
+│  ├─docs              //训练参数文档
+│  ├─gector            //模型训练及推理部分
+│  │  └─__pycache__
+│  ├─m2scorer          //结果打分工具
+│  ├─models            //预训练模型
+│  │  ├─bert-base-cased
+│  │  ├─bert-base-uncased
+│  │  ├─pretrained_gectors
+│  │  ├─roberta-base
+│  │  └─xlnet-base-cased
+│  ├─results           //结果
+│  ├─utils             
 ├── manage.py
 └── readme.md
 ```
