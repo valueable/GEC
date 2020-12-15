@@ -76,9 +76,9 @@ style="font-size: 20px;color: #3a8ee6; "
     line-height: 60px;
   }
 
-  .el-aside {
-    color: #333;
-  }
+  .el-input.is-disabled /deep/ .el-input__inner {
+  color: dodgerblue;
+}
 
 
 </style>
@@ -145,7 +145,7 @@ mounted: function(){
                var res1 = JSON.parse(response.bodyText);
                     if(res1['err_num']==0){
                       this.$message({type:'success',message:"添加成功",duration:600})
-
+                      this.correct()
                     }
 
              })

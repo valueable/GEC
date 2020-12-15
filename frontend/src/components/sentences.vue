@@ -72,7 +72,7 @@ export default {
                   this.flag = 1
                   this.$message({
                     type: "info",
-                    message: res.bodyText
+                    message: "删除成功"
                   })
                 })
       }).catch(() => {
