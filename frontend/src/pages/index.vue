@@ -44,7 +44,7 @@ style="font-size: 20px;color: #3a8ee6; "
               </h>
           </el-header>
 
-      <el-header height="100px" style="background: white">
+      <el-header height="100px" style="background: lightblue">
         <h style="text-align: center; color: #F56C6C" >
                 <li v-for=" v in value" > {{ v }}
                   <el-button type="primary" style="alignment: center; margin-left: 50px"

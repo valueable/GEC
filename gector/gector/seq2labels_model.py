@@ -144,7 +144,7 @@ class Seq2Labels(Model):
             [batch_size, sequence_length, self.num_labels_classes])
         class_probabilities_d = F.softmax(logits_d, dim=-1).view(
             [batch_size, sequence_length, self.num_detect_classes])
-        # incorr * mask 带注意力的错误概率
+        # incorr * mask 带注意力的错误概率，不计算pad部分的error概率
         error_probs = class_probabilities_d[:, :, self.incorr_index] * mask
         # 取最大值
         incorr_prob = torch.max(error_probs, dim=-1)[0]

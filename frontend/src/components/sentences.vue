@@ -89,7 +89,7 @@ export default {
                       if(res1['err_num']==0){
                           for(var i=0;i<res1['list'].length;i++){
                               this.tags.push({'itemName':res1['list'][i]['fields']['type'],
-                                'itemHref':'/search/'+res1['list'][i]['fields']['type']})
+                                'itemHref':'/searchType/'+res1['list'][i]['fields']['type']})
                           }
                       }
               })

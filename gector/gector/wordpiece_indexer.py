@@ -417,16 +417,20 @@ class PretrainedBertIndexer(WordpieceIndexer):
                     pretrained_model, do_lower_case=do_lowercase, do_basic_tokenize=False)
 
         # to adjust all tokenizers
+        # 只有roberta有encode ，其使用bpe编码， 与之对应的，其也有解码属性 decoder
         if hasattr(bert_tokenizer, 'encoder'):
             bert_tokenizer.vocab = bert_tokenizer.encoder
+        # xlnet 使用的是sentence piece（sp_model）
         if hasattr(bert_tokenizer, 'sp_model'):
             # 构建字典 vocab -> piece:index
             bert_tokenizer.vocab = defaultdict(lambda: 1)
+            # 32000 tokens
             for i in range(bert_tokenizer.sp_model.get_piece_size()):
                 # key piece value index
                 bert_tokenizer.vocab[bert_tokenizer.sp_model.id_to_piece(i)] = i
-        # 只有roberta的special_token_fix 为1
+        # 只有roberta的special_token_fix 为1, 使用<s> </s>分割； xlnet和bert用[cls], [sep]
         if special_tokens_fix:
+            # 加入 $Start
             bert_tokenizer.add_tokens([START_TOKEN])
             # 计入词汇表
             bert_tokenizer.vocab[START_TOKEN] = len(bert_tokenizer) - 1
