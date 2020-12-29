@@ -1,7 +1,7 @@
 <template>
     <div id="analyze">
   <TopNav></TopNav>
-<el-table :data="data" style="margin-left: 35%; margin-right: 35%">
+<el-table :data="data" style="margin-left: 35%; margin-right: 35%; width: 25%" border="true">
   <el-table-column
     fixed
         prop="itemName"
@@ -16,7 +16,7 @@
       </el-table-column>
   <el-table-column
       label="操作"
-      width="120">
+      width="150">
       <template slot-scope="data">
         <el-button
           @click.native.prevent="deleteRow(data.$index, data.row)"

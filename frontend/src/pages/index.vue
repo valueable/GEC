@@ -37,14 +37,14 @@ style="font-size: 20px;color: #3a8ee6; "
     <el-carousel-item v-for="(value, key, index) in detailDic" :key="item" v-if="value.length != 0">
       <h3 class="medium">
 
-        <el-header height="100px" style="background: whitesmoke">
+        <el-header height="100px" style="background: darkseagreen">
         <i class="s-opportunity"></i>
           <h style="text-align: center; height: 40%" >
                 {{key}}
               </h>
           </el-header>
 
-      <el-header height="100px" style="background: lightblue">
+      <el-header height="200px" style="background: powderblue">
         <h style="text-align: center; color: #F56C6C" >
                 <li v-for=" v in value" > {{ v }}
                   <el-button type="primary" style="alignment: center; margin-left: 50px"
@@ -54,8 +54,6 @@ style="font-size: 20px;color: #3a8ee6; "
               </h>
       </el-header>
 
-        <el-header height="100px" style="background: white">
-      </el-header>
 
       </h3>
 
