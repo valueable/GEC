@@ -12,7 +12,7 @@ from allennlp.data.token_indexers import TokenIndexer, SingleIdTokenIndexer
 from allennlp.data.tokenizers import Token
 from overrides import overrides
 
-from utils.helpers import SEQ_DELIMETERS, START_TOKEN
+from gector.utils.helpers import SEQ_DELIMETERS, START_TOKEN
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -36,6 +36,12 @@ class Seq2LabelsDatasetReader(DatasetReader):
         Note that the `output` tags will always correspond to single token IDs based on how they
         are pre-tokenised in the data file.
     max_len: if set than will truncate long sentences
+    同时，datasetreader类需要重写read和text_to_instance方法，顾名思义，分别是从文件中读数据和将文本转成allennlp的instance
+    工作流程如下
+    1. Token(token) 包括截取
+    2. Tokenfield(token, token indexer)
+    3. 获取token的text(元数据)metadata，label, d_tag，将上述三个封装成field对象，然后把上述组成字典 'token' -> filed(token)
+    4. 最后在封装成instance
     """
     # fix broken sentences mostly in Lang8 匹配破碎句子如：    .aaaaa
     BROKEN_SENTENCES_REGEXP = re.compile(r'\.[a-zA-RT-Z]')
@@ -82,11 +88,11 @@ class Seq2LabelsDatasetReader(DatasetReader):
                 if not line or (not self._test_mode and self._broken_dot_strategy == 'skip'
                                 and self.BROKEN_SENTENCES_REGEXP.search(line) is not None):
                     continue
-                # 预处理后的文件是token+分隔符+tag 这里是要获取一个list：[[token,tag]]
+                # 预处理后的文件是token+分隔符+tag 这里是要获取一个list：[[token1,tag1], [token2, tag2]...]
                 tokens_and_tags = [pair.rsplit(self._delimeters['labels'], 1)
                                    for pair in line.split(self._delimeters['tokens'])]
                 try:
-                    # 左边是token 右边是tags 即 keep ，delete 一类,转化成token对象
+                    # 左边是token 右边是tags 即 keep ，delete 一类,转化成token对象(allennlp 工作流程)
                     tokens = [Token(token) for token, tag in tokens_and_tags]
                     tags = [tag for token, tag in tokens_and_tags]
                 except ValueError: # 处理没有tag的异常
@@ -101,9 +107,11 @@ class Seq2LabelsDatasetReader(DatasetReader):
                     # truncate 截取
                     tokens = tokens[:self._max_len]
                     tags = None if tags is None else tags[:self._max_len]
+                # 封装成实例，包含tokens， label等字段
                 instance = self.text_to_instance(tokens, tags, words)
                 if instance:
                     # yield 使函数可迭代并且相当于return allennlp的懒加载机制
+                    # 简单来说，就是当用到该instance才加载到内存，但也相当于是用时间换空间
                     yield instance
 
     def extract_tags(self, tags: List[str]):
@@ -112,7 +120,7 @@ class Seq2LabelsDatasetReader(DatasetReader):
         labels = [x.split(op_del) for x in tags]
         # 映射label个数的字典
         complex_flag_dict = {}
-        # get flags
+        # get flags 统计至多由五个flag组成的改错方案
         for i in range(5):
             idx = i + 1
             complex_flag_dict[idx] = sum([len(x) > idx for x in labels])
@@ -149,7 +157,7 @@ class Seq2LabelsDatasetReader(DatasetReader):
             if self._skip_complex and complex_flag_dict[self._skip_complex] > 0:
                 return None
             rnd = random()
-            # skip TN
+            # skip TN(真实负例是指无语法错误的句子)
             if self._skip_correct and all(x == "CORRECT" for x in detect_tags):
                 if rnd > self._tn_prob:
                     return None

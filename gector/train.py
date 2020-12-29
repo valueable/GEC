@@ -8,14 +8,23 @@ from allennlp.data.vocabulary import DEFAULT_OOV_TOKEN, DEFAULT_PADDING_TOKEN
 from allennlp.data.vocabulary import Vocabulary
 from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
 
-from gector.bert_token_embedder import PretrainedBertEmbedder
-from gector.datareader import Seq2LabelsDatasetReader
-from gector.seq2labels_model import Seq2Labels
-from gector.trainer import Trainer
-from gector.wordpiece_indexer import PretrainedBertIndexer
-from utils.helpers import get_weights_name
+from gector.gector.bert_token_embedder import PretrainedBertEmbedder
+from gector.gector.datareader import Seq2LabelsDatasetReader
+from gector.gector.seq2labels_model import Seq2Labels
+from gector.gector.trainer import Trainer
+from gector.gector.wordpiece_indexer import PretrainedBertIndexer
+from gector.utils.helpers import get_weights_name
 
-
+'''
+(pipeline: Token(tokenization) -> TokenIndexers -> TokenEmbedders -> TextFieldEmbedders)
+sentence字段的处理分为以下几个阶段： 
+1. tokenizer -> 分词 
+2. Token -> 转化为单个Token对象 
+3. Instance -> 转化为Instance实例 
+4. Iterator -> 并组装成batch模式 
+5. model.forward -> 塞给模型去执行 
+6. token_embedders -> 将idx转化成词向量
+'''
 # 设置种子是为了每一次的“随机”都是同一个值，方便复现和效果比较
 def fix_seed():
     torch.manual_seed(1)
@@ -116,7 +125,7 @@ def main(args):
     default_tokens = [DEFAULT_OOV_TOKEN, DEFAULT_PADDING_TOKEN]
     namespaces = ['labels', 'd_tags']
     tokens_to_add = {x: default_tokens for x in namespaces}
-    # build vocab 创建vocab
+    # build vocab 创建vocab, 词表可以全局制定一些dimension(embed dim)信息， 无需再显示指定
     if args.vocab_path:
         vocab = Vocabulary.from_files(args.vocab_path)
     else:
@@ -158,13 +167,14 @@ def main(args):
         optimizer, factor=0.1, patience=10)
     instances_per_epoch = None if not args.updates_per_epoch else \
         int(args.updates_per_epoch * args.batch_size * args.accumulation_size)
-    # 负责产生batch，同时让长度相近的文本放在一起，减少文本填充
+    # 负责产生batch，同时让长度相近的文本放在一起，减少文本填充， 提高速度
     iterator = BucketIterator(batch_size=args.batch_size,
                               sorting_keys=[("tokens", "num_tokens")],
                               biggest_batch_first=True,
                               max_instances_in_memory=args.batch_size * 20000,
                               instances_per_epoch=instances_per_epoch,
                               )
+    # 由于token indexer是在datasetreader初始化时指定，而词表需要token indexer才可构建，此处为了解决这个依赖性问题
     iterator.index_with(vocab)
     trainer = Trainer(model=model,
                       optimizer=optimizer,
@@ -235,7 +245,7 @@ if __name__ == '__main__':
                         default=1)
     parser.add_argument('--skip_complex',
                         type=int,
-                        help='If set than complex corrections will be skipped '
+                        help='If set then complex corrections will be skipped '
                              'by data reader.',
                         choices=[0, 1, 2, 3, 4, 5],
                         default=0)

@@ -64,6 +64,7 @@ class WordpieceIndexer(TokenIndexer[int]):
         sliding window.
     token_min_padding_length : ``int``, optional (default=``0``)
         See :class:`TokenIndexer`.
+        最小的需要pad到的长度
     """
 
     def __init__(self,
@@ -154,7 +155,7 @@ class WordpieceIndexer(TokenIndexer[int]):
             return token
 
         while True:
-            # 二元语言模型 其中dic.get()的第二个参数是如果没有找到key的value，取的默认值 这里目的是取出出现频次最高的bigram
+            # 二元语言模型 其中dic(bpe_rank).get()的第二个参数是如果没有找到key的value，取的默认值 这里目的是取出出现频次最高的bigram
             bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair,
                                                                     float(
                                                                         'inf')))
@@ -436,12 +437,15 @@ class PretrainedBertIndexer(WordpieceIndexer):
             bert_tokenizer.vocab[START_TOKEN] = len(bert_tokenizer) - 1
         # roberta用byte positional embedding
         if "roberta" in pretrained_model:
+            # roberta的属性，包括wordpiece的index rank和encoder
             bpe_ranks = bert_tokenizer.bpe_ranks
             byte_encoder = bert_tokenizer.byte_encoder
         else:
             bpe_ranks = {}
             byte_encoder = None
         # 由于继承了wordpieceindexer需要实例化
+        # 其中对于xlnet和bert，直接使用tokenize等方法即可，对于Roberta，需要自制bpe等算法
+        # 然后获得token to index信息，处理超出max piece的情况，包括truncate 或者 分成几部分然后batch起来
         super().__init__(vocab=bert_tokenizer.vocab,
                          bpe_ranks=bpe_ranks,
                          byte_encoder=byte_encoder,

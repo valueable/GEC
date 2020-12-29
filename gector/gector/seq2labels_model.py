@@ -14,8 +14,8 @@ from overrides import overrides
 from torch.nn.modules.linear import Linear
 
 '''
-encoder:bert,xlnet,roberta
-decoder:softmax
+encoder: bert,xlnet,roberta
+decoder: softmax
 
 '''
 @Model.register("seq2labels")
@@ -70,6 +70,7 @@ class Seq2Labels(Model):
         self.label_namespaces = [labels_namespace,
                                  detect_namespace]
         self.text_field_embedder = text_field_embedder
+        # 关键字的名字要与构建vocab时的保持一致，所以用AllenNLP框架尽量这些名字都一致比较好
         self.num_labels_classes = self.vocab.get_vocab_size(labels_namespace)
         self.num_detect_classes = self.vocab.get_vocab_size(detect_namespace)
         self.label_smoothing = label_smoothing
@@ -80,6 +81,7 @@ class Seq2Labels(Model):
         self._verbose_metrics = verbose_metrics
         # dropout层解决过拟合
         # timedistribute：  例如输入数据维度为 batch，timestep，... 它把输入变成batch*timestep交给module 然后再还原
+        # 这是因为pytorch一般接受的输入都是三维[batch, seq_len, emb_dim]
         self.predictor_dropout = TimeDistributed(torch.nn.Dropout(predictor_dropout))
         # tag到layer的投影层
         self.tag_labels_projection_layer = TimeDistributed(
@@ -169,9 +171,9 @@ class Seq2Labels(Model):
             for metric in self.metrics.values():
                 metric(logits_labels, labels, mask.float())
                 metric(logits_d, d_tags, mask.float())
-            # loss 包括label和detection两方面的错误
+            # loss 包括label和detection两方面的损失
             output_dict["loss"] = loss_labels + loss_d
-
+        # 元数据
         if metadata is not None:
             output_dict["words"] = [x["words"] for x in metadata]
         return output_dict
@@ -182,6 +184,7 @@ class Seq2Labels(Model):
         Does a simple position-wise argmax over each token, converts indices to string labels, and
         adds a ``"tags"`` key to the dictionary with the result.
         """
+        # 取 d_tags, labels
         for label_namespace in self.label_namespaces:
             all_predictions = output_dict[f'class_probabilities_{label_namespace}']
             all_predictions = all_predictions.cpu().data.numpy()
@@ -189,6 +192,7 @@ class Seq2Labels(Model):
             if all_predictions.ndim == 3:
                 predictions_list = [all_predictions[i] for i in range(all_predictions.shape[0])]
             else:
+                # [1, token_len, class_num]
                 predictions_list = [all_predictions]
             all_tags = []
 

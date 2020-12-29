@@ -156,16 +156,20 @@ class GecBERTModel(object):
         print("Model is restored", file=sys.stderr)
 
     def predict(self, batches):
+        # --开始inference--
         t11 = time()
         predictions = []
-        # zip将参数打包起来进入迭代
+        # zip将参数打包起来进入迭代，有model个batch，所以放在zip里面一一对应
         for batch, model in zip(batches, self.models):
             batch = util.move_to_device(batch.as_tensor_dict(), 0 if torch.cuda.is_available() else -1)
+            # 推理不需要计算梯度
             with torch.no_grad():
+                # 返回的是带有loss等的metric字典
                 prediction = model.forward(**batch)
             predictions.append(prediction)
         # 为每个句子获取最有可能的label
         preds, idx, error_probs = self._convert(predictions)
+        # --inference结束--
         t55 = time()
         if self.log:
             print(f"Inference time {t55 - t11}")
@@ -228,10 +232,14 @@ class GecBERTModel(object):
         for indexer in self.indexers:
             batch = []
             for sequence in token_batch:
+                # truncate
                 tokens = sequence[:max_len]
+                # 加上start，以便feed到模型
                 tokens = [Token(token) for token in ['$START'] + tokens]
+                # Token -> Field -> Instance
                 batch.append(Instance({'tokens': TextField(tokens, indexer)}))
             batch = Batch(batch)
+            # 这一步很关键，容易忘
             batch.index_instances(self.vocab)
             batches.append(batch)
 
@@ -250,6 +258,7 @@ class GecBERTModel(object):
         max_vals = torch.max(all_class_probs, dim=-1)
         probs = max_vals[0].tolist()
         idx = max_vals[1].tolist()
+        # 一个prob对应一句话，相当于是一个二维列表，第一维是句子，第二维是句子里面的token的prob
         return probs, idx, error_probs.tolist()
     # 每个iteration更新相关记录信息
     def update_final_batch(self, final_batch, pred_ids, pred_batch,
@@ -285,6 +294,7 @@ class GecBERTModel(object):
                     'SPLIT': [], 'AGREEMENT': [], 'Spell': []}
         # 查看allennlp相应api 参数先传入token名 然后是命名空间 这里的no-op index 即为不需要操作的token的index 的列表
         noop_index = self.vocab.get_token_index("$KEEP", "labels")
+        # 一个循环对应一个句子
         for tokens, probabilities, idxs, error_prob in zip(batch,
                                                            all_probabilities,
                                                            all_idxs,
@@ -378,7 +388,7 @@ class GecBERTModel(object):
                 dics[key].extend(value)
             if self.log:
                 print(f"Iteration {n_iter + 1}. Predicted {round(100*len(pred_ids)/batch_size, 1)}% of sentences.")
-
+            # 为了下一个iteration更新信息
             final_batch, pred_ids, cnt = \
                 self.update_final_batch(final_batch, pred_ids, pred_batch,
                                         prev_preds_dict)

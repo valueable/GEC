@@ -147,11 +147,16 @@ class BertEmbedder(TokenEmbedder):
         input_mask = (input_ids != 0).long()
         # input_ids may have extra dimensions, so we reshape down to 2-d
         # before calling the BERT model and then reshape back at the end.
+        '''
+        模型forward的返回第一个值如下
+        last_hidden_state (torch.FloatTensor of shape (batch_size, sequence_length, hidden_size)) 
+        – Sequence of hidden-states at the output of the last layer of the model.
+        '''
         all_encoder_layers = self.bert_model(
             input_ids=util.combine_initial_dims(input_ids),
             attention_mask=util.combine_initial_dims(input_mask),
         )[0]
-        #转变为三维
+        # 由二维转变为三维
         if len(all_encoder_layers[0].shape) == 3:
             all_encoder_layers = torch.stack(all_encoder_layers)
         elif len(all_encoder_layers[0].shape) == 2:
@@ -207,7 +212,7 @@ class BertEmbedder(TokenEmbedder):
         # Recombine the outputs of all layers
         # (layers, batch_size * d1 * ... * dn, sequence_length, embedding_dim)
         # recombined = torch.cat(combined, dim=2)
-        #同上
+        # 同上
         input_mask = (recombined_embeddings != 0).long()
 
         if self._scalar_mix is not None:
@@ -222,9 +227,9 @@ class BertEmbedder(TokenEmbedder):
             dims = initial_dims if needs_split else input_ids.size()
             return util.uncombine_initial_dims(mix, dims)
         else:
-            # offsets is (batch_size, d1, ..., dn, orig_sequence_length)
+            # offsets 在gec_model 中的preprocess函数里面生成的，维度为[batch_size, seq_len]
             offsets2d = util.combine_initial_dims(offsets)
-            # now offsets is (batch_size * d1 * ... * dn, orig_sequence_length)
+            # now offsets is [batch_size, seq_len]
             range_vector = util.get_range_vector(
                 offsets2d.size(0), device=util.get_device_of(mix)
             ).unsqueeze(1)
@@ -232,6 +237,8 @@ class BertEmbedder(TokenEmbedder):
             # 这里是选择最后一列用作embed的部分
             selected_embeddings = mix[range_vector, offsets2d]
             # return the reshaped tensor of embeddings with shape (d1, ..., dn, sequence_length, embedding_dim)
+            # If original size is 1-d or 2-d, return it as is.
+            # 这里直接返回selected embedings
             return util.uncombine_initial_dims(selected_embeddings, offsets.size())
 
 
@@ -265,7 +272,7 @@ class PretrainedBertEmbedder(BertEmbedder):
         special_tokens_fix: int = 0,
     ) -> None:
         model = PretrainedBertModel.load(pretrained_model)
-
+        # 需要计算梯度则参数随train更新
         for param in model.parameters():
             param.requires_grad = requires_grad
 
@@ -273,7 +280,7 @@ class PretrainedBertEmbedder(BertEmbedder):
             bert_model=model,
             top_layer_only=top_layer_only
         )
-
+        # 针对roberta
         if special_tokens_fix:
             try:
                 vocab_size = self.bert_model.embeddings.word_embeddings.num_embeddings

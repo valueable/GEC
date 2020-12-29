@@ -270,7 +270,10 @@ class Trainer(TrainerBase):
         """
         Does a forward pass on the given batches and returns the ``loss`` value in the result.
         If ``for_training`` is `True` also applies regularization penalty.
+        正则化惩罚是要降低不重要特征的影响力，避免过拟合
+        被train epoch 和evaluate epoch复用
         """
+        # 处理并行， 但在gector中默认是单gpu
         if self._multiple_gpu:
             output_dict = training_util.data_parallel(batch_group, self.model, self._cuda_devices)
         else:
@@ -336,11 +339,12 @@ class Trainer(TrainerBase):
         cumulative_batch_size = 0
         # 梯度清零 常规操作
         self.optimizer.zero_grad()
+        # 开始训练
         for batch_group in train_generator_tqdm:
             batches_this_epoch += 1
             self._batch_num_total += 1
             batch_num_total = self._batch_num_total
-
+            # 一个batch为accumulated_batch_count个iteration，梯度累积
             iter_len = self.accumulated_batch_count \
                 if batches_this_epoch <= (num_training_batches - residue) else residue
 
@@ -526,6 +530,7 @@ class Trainer(TrainerBase):
     def train(self) -> Dict[str, Any]:
         """
         Trains the supplied model with the supplied parameters.
+        相关的metric字典记录的信息都在训练时产生的json文件中
         """
         try:
             epoch_counter = self._restore_checkpoint()
@@ -546,8 +551,15 @@ class Trainer(TrainerBase):
         this_epoch_val_metric: float = None
         metrics: Dict[str, Any] = {}
         epochs_trained = 0
+        # ------训练开始-------
         training_start_time = time.time()
         # cold_step_count为只训练最后一层线性层的epoch数
+        # 训练阶段一，二
+        # 在前 cold_step_count个epoch
+        # 不需要训练原来的预训练模型，之后需要训练
+        # 阶段三直接训练预训练模型参数， 因为预训练模型的参数过多
+        # 同时需要注意，在cold step阶段也要使用cold lr，
+        # 此阶段结束后，使用base lr
         if self.cold_step_count > 0:
             base_lr = self.optimizer.param_groups[0]['lr']
             for param_group in self.optimizer.param_groups:
@@ -557,14 +569,16 @@ class Trainer(TrainerBase):
         metrics["best_epoch"] = self._metric_tracker.best_epoch
         for key, value in self._metric_tracker.best_epoch_metrics.items():
             metrics["best_validation_" + key] = value
-
+        # epoch_counter = 0 if restore_checkpoint is none else continue training
         for epoch in range(epoch_counter, self._num_epochs):
+            # 恢复正常
             if epoch == self.cold_step_count and epoch != 0:
                 for param_group in self.optimizer.param_groups:
                     param_group['lr'] = base_lr
                 self.model.text_field_embedder._token_embedders['bert'].set_weights(freeze=False)
-
+            # --开始当前epoch--
             epoch_start_time = time.time()
+            # **训练**
             train_metrics = self._train_epoch(epoch)
 
             # get peak of memory usage
@@ -578,7 +592,9 @@ class Trainer(TrainerBase):
 
             # clear cache before validation
             torch.cuda.empty_cache()
+            # evaluate的函数说了， 不是一定需要进行验证，所以这里要做判断
             if self._validation_data is not None:
+                # 常规操作，验证时不计算梯度，不更新参数
                 with torch.no_grad():
                     # We have a validation set, so compute all the metrics on it.
                     val_loss, num_batches = self._validation_loss()
@@ -592,6 +608,8 @@ class Trainer(TrainerBase):
                     self._metric_tracker.add_metric(this_epoch_val_metric)
 
                     if self._metric_tracker.should_stop_early():
+                        # 这就是为什么有的时候ckpt不足epoch个数，是因为patience耗光
+                        # patience是配合早停机制的阈值，patience次在验证集的性能下降时，停止训练
                         logger.info("Ran out of patience.  Stopping training.")
                         break
 
@@ -600,18 +618,20 @@ class Trainer(TrainerBase):
             )  # +1 because tensorboard doesn't like 0
 
             # Create overall metrics dict
+            # **epoch结束**
             training_elapsed_time = time.time() - training_start_time
             metrics["training_duration"] = str(datetime.timedelta(seconds=training_elapsed_time))
             metrics["training_start_epoch"] = epoch_counter
             metrics["training_epochs"] = epochs_trained
             metrics["epoch"] = epoch
-
+            # 将train， evaluate阶段的metric记录都汇总
             for key, value in train_metrics.items():
                 metrics["training_" + key] = value
             for key, value in val_metrics.items():
                 metrics["validation_" + key] = value
 
             # if self.cold_step_count <= epoch:
+            # step操作
             self.scheduler.step(metrics['validation_loss'])
             # 这些更新都在119服务器的pretraingectors目录下
             if self._metric_tracker.is_best_so_far():
@@ -631,10 +651,12 @@ class Trainer(TrainerBase):
             # The Scheduler API is agnostic to whether your schedule requires a validation metric -
             # if it doesn't, the validation metric passed here is ignored.
             if self._learning_rate_scheduler:
+                # step操作
                 self._learning_rate_scheduler.step(this_epoch_val_metric, epoch)
             if self._momentum_scheduler:
+                # step操作
                 self._momentum_scheduler.step(this_epoch_val_metric, epoch)
-
+            # 保存ckpt
             self._save_checkpoint(epoch)
 
             epoch_elapsed_time = time.time() - epoch_start_time
@@ -647,7 +669,7 @@ class Trainer(TrainerBase):
                 )
                 formatted_time = str(datetime.timedelta(seconds=int(estimated_time_remaining)))
                 logger.info("Estimated training time remaining: %s", formatted_time)
-
+            # 一个epoch结束
             epochs_trained += 1
 
         # make sure pending events are flushed to disk and files are closed properly
