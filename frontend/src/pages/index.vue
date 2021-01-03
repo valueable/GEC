@@ -101,6 +101,7 @@ style="font-size: 20px;color: #3a8ee6; "
 
 <script>
 
+
 import top from '../components/topNav'
 export default {
   name: 'index',
