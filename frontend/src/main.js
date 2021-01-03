@@ -17,6 +17,7 @@ import searchType from './pages/searchType'
 import analyze from './pages/analyze'
 import edituser from './pages/edituser'
 import vocab from './pages/vocab'
+import corrfiles from './pages/corrfiles'
 
 
 Vue.config.productionTip = false;
@@ -74,6 +75,11 @@ const router = new VueRouter({
       path: '/vocab',
       name: 'vocab',
       component: vocab
+    },
+    {
+      path: '/corrfiles',
+      name: 'corrfiles',
+      component:corrfiles
     },
 
   ],

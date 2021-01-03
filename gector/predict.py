@@ -9,7 +9,26 @@ from collections import defaultdict
 
 
 # 对目标文件进行预测 返回改错个数以及更改后的句子
-def predict_for_file(input_file, output_file, model, spell, batch_size=32):
+def predict_for_file(input_file, output_file, model=None, spell=None, batch_size=128):
+    model_path = ['E://pycharm//gector//models//pretrained_gectors//xlnet_0_gector.th',
+                  'E://pycharm//gector//models//pretrained_gectors//bert_0_gector.th',
+                  'E://pycharm//gector//models//pretrained_gectors//roberta_1_gector.th'
+                  ]
+    vocab_path = 'E://pycharm//gector//data//output_vocabulary'
+    model = GecBERTModel(vocab_path=vocab_path,
+                         model_paths=model_path,
+                         max_len=50, min_len=3,
+                         iterations=5,
+                         min_error_probability=0.0,
+                         min_probability=0.0,
+                         lowercase_tokens=0,
+                         model_name='xlnet',
+                         special_tokens_fix=0,
+                         log=False,
+                         confidence=0,
+                         is_ensemble=1,
+                         )
+    spell = SpellChecker()
     test_data = read_lines(input_file)
     predictions = []
     cnt_corrections = 0

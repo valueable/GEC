@@ -162,7 +162,7 @@ class BertEmbedder(TokenEmbedder):
         elif len(all_encoder_layers[0].shape) == 2:
             all_encoder_layers = torch.unsqueeze(all_encoder_layers, dim=0)
 
-        if needs_split:  # 这个操作是因为输入的seq长度大于maxpiece 现在要做的是首先将其拆分为一个list的多个元素
+        if needs_split:  # 这个操作是因为输入的seq长度大于maxpiece 现在要做的是首先将其拆分为一个list的多个元素，将截取的句子还原
             # First, unpack the output embeddings into one long sequence again 行拆分 列拼接
             # 这步做的是把数据拆分成一个list，list每个元素又是list，一共有seqlen/batchsize个list
             unpacked_embeddings = torch.split(all_encoder_layers, batch_size, dim=1)

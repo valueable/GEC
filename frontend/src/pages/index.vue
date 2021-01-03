@@ -29,7 +29,24 @@ style="font-size: 20px;color: #3a8ee6; "
 </el-input>
 </el-container>
   <el-container>
-    <el-button type="primary" style="margin-left: 40.5%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
+    <el-upload v-if="this.userId > 0"
+  class="upload-demo"
+  ref="upload"
+  accept=".txt"
+  action="/api/upLoad/"
+  :on-preview="handlePreview"
+  :on-remove="handleRemove"
+  :limit = 1
+  :data={userId:this.userId}
+  :file-list="fileList"
+  :name = 'file'
+  :on-success = "handleSuccess"
+  :auto-upload="false">
+  <el-button slot="trigger" size="small" type="primary">选取文件<i class="el-icon-folder"/> </el-button>
+  <el-button style="margin-left: 10px;" size="small" type="success" @click="submitUpload">上传<i class="el-icon-upload"/> </el-button>
+  <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
+</el-upload>
+    <el-button type="primary" style="margin-left: 30%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
     <el-button type="primary"  @click="clean">清空<i class="el-icon-delete el-icon--right"></i></el-button>
   </el-container>
 <el-container>
@@ -148,7 +165,19 @@ mounted: function(){
 
              })
          }
-      }
+      },
+    submitUpload() {
+        this.$refs.upload.submit();
+      },
+      handleRemove(file, fileList) {
+        console.log(file, fileList);
+      },
+      handlePreview(file) {
+        console.log(file);
+      },
+    handleSuccess(){
+      this.$message({type:'success',message:"上传成功",duration:600})
+    }
       }
 
 }

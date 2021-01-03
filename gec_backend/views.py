@@ -16,6 +16,9 @@ from django.http import HttpResponse
 from django.http import JsonResponse
 from django.core import serializers
 
+from gec_backend.models import Doc, User
+import os
+
 # Create your views here.
 
 def getCurUserID(req):
@@ -414,6 +417,65 @@ def delWord(req):
         response['msg'] = 'error'
         response['err_num'] = 1
     print(response, "=====delete word here")
+    return JsonResponse(response)
+
+
+def uploadFile(req):
+    response = {}
+    curFile = req.FILES.get('file')
+    userId = req.POST.get('userId')
+    filedata = curFile.read()
+    dir = 'F://gecwebsitefiles//uploads//' + userId + '_' + curFile.name
+    corrdir = 'F://gecwebsitefiles//uploads//' + userId + '_corr_' + curFile.name
+    with open(dir, 'wb') as f:
+        f.write(filedata)
+    cnt, _, _ = predict.predict_for_file(dir, corrdir)
+    user = User.objects.get(id=userId)
+    newDoc = Doc(org_doc=curFile.name, res_doc_name='corr_'+curFile.name, error_cnt=cnt, user=user)
+    newDoc.save()
+    response['msg'] = 'succeed'
+    response['err_num'] = 0
+    print('file correct finished')
+    return JsonResponse(response)
+
+def showFiles(req):
+    response = {}
+    userId = req.GET.get('userId')
+    user = User.objects.get(id=userId)
+    files = user.user_docs.all().order_by('-dateTime')
+    response['msg'] = 'succeed'
+    response['err_num'] = 0
+    response['list'] = json.loads(serializers.serialize("json", files))
+    print(response, "=====get all docs here")
+    return JsonResponse(response)
+
+def downloadFile(req):
+    userId = req.GET.get('userId')
+    filename = req.GET.get('filename')
+    filepath = 'F://gecwebsitefiles//uploads//' + userId + '_' + filename
+    print(filepath)
+    file = open(filepath, 'rb')
+    response = HttpResponse(file)
+    response['Content-Type'] = 'application/octet-stream'
+    response['Content-Disposition'] = 'attachment;filename=' + filename
+    return response
+
+
+def deleteFile(req):
+    response = {}
+    curfile = req.GET.get('filename')
+    resfile = req.GET.get('res_doc')
+    userID = req.GET.get('userID')
+    user = User.objects.get(id=userID)
+    file = user.user_docs.filter(org_doc=curfile)
+    file.delete()
+    orgfilepath = 'F://gecwebsitefiles//uploads//' + userID + '_' + curfile
+    resfilepath = 'F://gecwebsitefiles//uploads//' + userID + '_' + resfile
+    os.remove(orgfilepath)
+    os.remove(resfilepath)
+    response['msg'] = 'succeed'
+    response['err_num'] = 0
+    print(response, "=====delete file here")
     return JsonResponse(response)
 
 
