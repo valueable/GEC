@@ -44,7 +44,7 @@ style="font-size: 20px;color: #3a8ee6; "
   :auto-upload="false">
   <el-button slot="trigger" size="small" type="primary">选取文件<i class="el-icon-folder"/> </el-button>
   <el-button style="margin-left: 10px;" size="small" type="success" @click="submitUpload">上传<i class="el-icon-upload"/> </el-button>
-  <div slot="tip" class="el-upload__tip">只能上传jpg/png文件，且不超过500kb</div>
+  <div slot="tip" class="el-upload__tip">只能上传txt文件，且不超过500kb</div>
 </el-upload>
     <el-button type="primary" style="margin-left: 30%" @click="correct">改错<i class="el-icon-check el-icon--right"></i></el-button>
     <el-button type="primary"  @click="clean">清空<i class="el-icon-delete el-icon--right"></i></el-button>
