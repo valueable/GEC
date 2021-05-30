@@ -7,10 +7,10 @@ import numpy as np
 # tqdm 进度条
 from tqdm import tqdm
 
-from utils.helpers import write_lines, read_parallel_lines, encode_verb_form, \
+from gector.utils.helpers import write_lines, read_parallel_lines, encode_verb_form, \
     apply_reverse_transformation, SEQ_DELIMETERS, START_TOKEN
 
-# 返回最佳对齐方式 或者为replace 或者为insert GECTOR只允许replace
+# 返回最佳replace对齐方式
 def perfect_align(t, T, insertions_allowed=0,
                   cost_function=Levenshtein.distance):
     # dp[i, j, k] is a minimal cost of matching first `i` tokens of `t` with
@@ -39,6 +39,7 @@ def perfect_align(t, T, insertions_allowed=0,
                         # 如果不是上述几种情况 用levenshtein函数去解决
                         else:
                             cost = cost_function(t[i], '   '.join(T[j:k]))
+                        # 当前cost等于i以前，j以前的对齐 + i和j到k的cost
                         current = dp[i, j, q] + cost
                         if dp[i + 1, k, 0] > current:
                             dp[i + 1, k, 0] = current
@@ -59,9 +60,10 @@ def perfect_align(t, T, insertions_allowed=0,
     alignment = []
     i = len(t)
     j = len(T)
-    q = dp[i, j, :].argmin()  # 这里q为0
+    q = dp[i, j, :].argmin()  # q = 0
+    # 由于是源token的一个token与target token的多个token对齐，所以要从最后一个源token倒序回溯
     while i > 0 or q > 0:
-        is_insert = (come_from_ins[i, j, q] != q) and (q != 0)  # 只要q>1且最优不是q=0则为插入了
+        is_insert = (come_from_ins[i, j, q] != q) and (q != 0)  # 只要q>1且最优不是q=0则为插入了,故此处为false
         j, k, q = come_from[i, j, q], j, come_from_ins[i, j, q]
         if not is_insert:
             i -= 1
@@ -70,33 +72,37 @@ def perfect_align(t, T, insertions_allowed=0,
             alignment.append(['INSERT', T[j:k], (i, i)])
         else:  # 如果不是插入的 替换即可
             alignment.append([f'REPLACE_{t[i]}', T[j:k], (i, i + 1)])
-
+    # 回溯必须完全，即soruce和target以最小cost充分replace
     assert j == 0
-    # 返回最小距离即对齐方式
+    # 返回replace的最小距离，且由于是倒序，这里再reverse一下变为正序
     return dp[len(t), len(T)].min(), list(reversed(alignment))
 
-# 去除多余空格后返回list形式的token
+# 按照空格再将token划分，返回一个list
 def _split(token):
     if not token:
         return []
     parts = token.split()
     return parts or [token]
 
-# 返回merge/swap的编辑结果 结果包括编辑位置和编辑操作 输入的tokens和words都是包含多个单词的list shiftidx是当前要操作的起始index
+# 返回merge/swap的编辑结果 结果包括编辑位置和编辑操作 输入的tokens和words都是包含多个单词的list
+# shiftidx是当前要操作的起始index
 def apply_merge_transformation(source_tokens, target_words, shift_idx):
     edits = []
-    # merge部分
+    # 源部分大于1token，而target为一个token，所以需要merge源token
     if len(source_tokens) > 1 and len(target_words) == 1:
         # check merge
         transform = check_merge(source_tokens, target_words)
+        # 如果是需要直接merge或使用‘-’来merge
         if transform:
+            # eg：ten year old -> ten-year-old 需要在ten和year地位置进行记录
             for i in range(len(source_tokens) - 1):
                 edits.append([(shift_idx + i, shift_idx + i + 1), transform])
             return edits
     # swap部分
     if len(source_tokens) == len(target_words) == 2:
-        # check swap
+        # check swap，将source_token reverse一下即可
         transform = check_swap(source_tokens, target_words)
+        # eg do to -> to do 在第一个位置上标明merge-swap
         if transform:
             edits.append([(shift_idx, shift_idx + 1), transform])
     return edits
@@ -191,49 +197,52 @@ def apply_transformation(source_token, target_token):
     return None
 
 
-# 对齐句子
+# 对齐句子，输入是一句话。
 def align_sequences(source_sent, target_sent):
-    # check if sent is OK
+    # check if sent is OK,即句子中不能存在预定义的分隔符，否则会混淆。
     if not is_sent_ok(source_sent) or not is_sent_ok(target_sent):
         return None
+    # 将一句话分成单词list
     source_tokens = source_sent.split()
     target_tokens = target_sent.split()
     # 获取如何转化源token为目标token
     matcher = SequenceMatcher(None, source_tokens, target_tokens)
-    # getopcode返回的是一个含有5个元组的列表，描述如何将字符串a转换为字符串b
+    # getopcode返回的是一个含有5个元组（增、删、改、相等）的列表，描述如何将字符串a转换为字符串b
     diffs = list(matcher.get_opcodes())
+    # 记录编辑方式
     all_edits = []
     for diff in diffs:
         tag, i1, i2, j1, j2 = diff
-        source_part = _split(" ".join(source_tokens[i1:i2]))   # 以list形式存放的编辑字段 下同
+        source_part = _split(" ".join(source_tokens[i1:i2]))   # 以list形式存放编辑字段 下同
         target_part = _split(" ".join(target_tokens[j1:j2]))
         if tag == 'equal':
             continue
         elif tag == 'delete':
-            # delete all words separately
+            # 一个单词一个单词地删除，形成记录。
             for j in range(i2 - i1):
                 edit = [(i1 + j, i1 + j + 1), '$DELETE']
                 all_edits.append(edit)
         elif tag == 'insert':
-            # append to the previous word
+            # 在source_token[i1-1]后append target_token，跟delete一样，也是一个一个地记录
             for target_token in target_part:
                 edit = ((i1 - 1, i1), f"$APPEND_{target_token}")
                 all_edits.append(edit)
-        # 注意 原函数的tag最后一类是替换 也就是用target替换source 这里gector为了再细化 把其分类为merge，wap，其他三类
+        # 注意 原函数的tag最后一类是替换 也就是用target替换source 这里gector为了再细化 把其分类为merge，swap，其他三类
         # 其他使用perfect_align 去解决（将目标语句再细化，分解成delete，append等，然后去划分标签）
         else:
-            # check merge first of all
+            # check 两种 merge 形式
             edits = apply_merge_transformation(source_part, target_part,
                                                shift_idx=i1)
             if edits:
                 all_edits.extend(edits)
                 continue
-
+            # 如果不是两种merge可以解决的，使用g-transform
             # normalize alignments if need (make them singleton)
             _, alignments = perfect_align(source_part, target_part,
                                           insertions_allowed=0)
             for alignment in alignments:
                 new_shift = alignment[2][0]  # 获得起始index
+                # 获取edit
                 edits = convert_alignments_into_edits(alignment,
                                                       shift_idx=i1 + new_shift)
                 all_edits.extend(edits)
@@ -261,6 +270,7 @@ def convert_edits_into_labels(source_tokens, all_edits):
             raise Exception("Unknown operation type")
     all_edits = flat_edits[:]
     labels = []
+    # 这里要注意每个句子都有一个起始符$start,所以多一个label
     total_labels = len(source_tokens) + 1
     if not all_edits:
         labels = [["$KEEP"] for x in range(total_labels)]
@@ -275,19 +285,26 @@ def convert_edits_into_labels(source_tokens, all_edits):
     return labels
 
 
-#  将对齐后的结果转为编辑操作
+#  将对齐后的结果转为编辑操作 -> [(st, ed), edit]
 def convert_alignments_into_edits(alignment, shift_idx):
     edits = []
+    # action都为replace
     action, target_tokens, new_idx = alignment
+    # 取出源token
     source_token = action.replace("REPLACE_", "")
 
-    # check if delete
+    # check if delete，这个是levenshtein给出的delete操作
     if not target_tokens:
         edit = [(shift_idx, 1 + shift_idx), "$DELETE"]
         return [edit]
 
     # check splits
-    # 将其分解为两部分，一部分是由-连接，单复数，动词形式等变换，另一部分就是在源token后面依次append剩余的target tokens
+    # 将其分解为两部分，一部分是先由-连接，然后再源token后面依次append剩余的target tokens
+    # 另一部分是单复数，动词形式等g-transform变换，以及levenshtein距离的问题
+
+
+    # 本部分是当源token分开‘-’后是target token的一部分，那么source token后续append所有其他词：
+    # 如 s: ten-year   t: ten year old -> [merge_ten,append_old]
     for i in range(1, len(target_tokens)):
         target_token = " ".join(target_tokens[:i + 1])
         transform = apply_transformation(source_token, target_token)
@@ -299,30 +316,33 @@ def convert_alignments_into_edits(alignment, shift_idx):
                 edits.append([(shift_idx, shift_idx + 1), f"$APPEND_{target}"])
             return edits
 
+    # 本部分是另一种情况
     transform_costs = []
     transforms = []
     for target_token in target_tokens:
+        # g-transform
         transform = apply_transformation(source_token, target_token)
         if transform:
             cost = 0
             transforms.append(transform)
+        # levenshtein
         else:
             cost = Levenshtein.distance(source_token, target_token)
             transforms.append(None)
         transform_costs.append(cost)
     min_cost_idx = transform_costs.index(min(transform_costs))
-    # append to the previous word
+    # g-transform之前的单词全部append
     for i in range(0, min_cost_idx):
         target = target_tokens[i]
         edit = [(shift_idx - 1, shift_idx), f"$APPEND_{target}"]
         edits.append(edit)
-    # replace/transform target word
+    # g-transform或后面部分直接全部替换
     transform = transforms[min_cost_idx]
     target = transform if transform is not None \
         else f"$REPLACE_{target_tokens[min_cost_idx]}"
     edit = [(shift_idx, 1 + shift_idx), target]
     edits.append(edit)
-    # append to this word
+    # 剩下的全append
     for i in range(min_cost_idx + 1, len(target_tokens)):
         target = target_tokens[i]
         edit = [(shift_idx, 1 + shift_idx), f"$APPEND_{target}"]
@@ -346,9 +366,12 @@ def add_labels_to_the_tokens(source_tokens, labels, delimeters=SEQ_DELIMETERS):
 '''
 def convert_data_from_raw_files(source_file, target_file, output_file, chunk_size):
     tagged = []
+    # 返回list，其中元素是一行去空格的文字。
     source_data, target_data = read_parallel_lines(source_file, target_file)
     print(f"The size of raw dataset is {len(source_data)}")
+    # tp正例代表出现语法错误的个数
     cnt_total, cnt_all, cnt_tp = 0, 0, 0
+    # 进度条
     for source_sent, target_sent in tqdm(zip(source_data, target_data)):
         try:
             # 源token+分隔符+操作label
@@ -358,8 +381,10 @@ def convert_data_from_raw_files(source_file, target_file, output_file, chunk_siz
         if source_sent != target_sent:
             cnt_tp += 1
         alignments = [aligned_sent]
+        # 统计单词数量
         cnt_all += len(alignments)
         try:
+            # 检查利用标签是否可以完全将源句子转为目标句子，是一个自我检查的过程
             check_sent = convert_tagged_line(aligned_sent)
         except Exception:
             # debug mode
@@ -402,9 +427,11 @@ def get_target_sent_by_levels(source_tokens, labels):
     relevant_edits = convert_labels_into_edits(labels)
     target_tokens = source_tokens[:]
     leveled_target_tokens = {}
+    # 如果没有语法错误
     if not relevant_edits:
         target_sentence = " ".join(target_tokens)
         return leveled_target_tokens, target_sentence
+    # 整句中单词的最大变换的次数
     max_level = max([len(x[1]) for x in relevant_edits])
     # level为候选操作数
     for level in range(max_level):
@@ -415,12 +442,13 @@ def get_target_sent_by_levels(source_tokens, labels):
             label = label_list[0]
             target_pos = start + shift_idx
             source_token = target_tokens[target_pos] if target_pos >= 0 else START_TOKEN
+            # 删除源句子中的token并移动指针
             if label == "$DELETE":
                 del target_tokens[target_pos]
                 shift_idx -= 1
             elif label.startswith("$APPEND_"):
                 word = label.replace("$APPEND_", "")
-                # 注意这样的list操作是可行的
+                # 在后面加上word
                 target_tokens[target_pos + 1: target_pos + 1] = [word]
                 shift_idx += 1
             elif label.startswith("$REPLACE_"):

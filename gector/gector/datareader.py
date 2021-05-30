@@ -1,4 +1,5 @@
 """Tweaked AllenNLP dataset reader."""
+# 基于源码sequence_tagging改动
 import logging
 import re
 from random import random
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 @DatasetReader.register("seq2labels_datareader")
 class Seq2LabelsDatasetReader(DatasetReader):
     """
-    Reads instances from a pretokenised file where each line is in the following format:
+    Reads instances from a pretokenized file where each line is in the following format:
 
     WORD###TAG [TAB] WORD###TAG [TAB] ..... \n
 
@@ -67,13 +68,13 @@ class Seq2LabelsDatasetReader(DatasetReader):
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
         self._delimeters = delimeters
         self._max_len = max_len
-        self._skip_correct = skip_correct
-        self._skip_complex = skip_complex
-        self._tag_strategy = tag_strategy
+        self._skip_correct = skip_correct   # 1
+        self._skip_complex = skip_complex   # 0
+        self._tag_strategy = tag_strategy   # keep one
         self._broken_dot_strategy = broken_dot_strategy
         self._test_mode = test_mode
-        self._tn_prob = tn_prob
-        self._tp_prob = tp_prob
+        self._tn_prob = tn_prob    # 只有最后一个阶段的微调才为1，因为对应数据集存在五语法错误的数据
+        self._tp_prob = tp_prob    # 一直都是1
 
     @overrides
     def _read(self, file_path):
@@ -95,7 +96,7 @@ class Seq2LabelsDatasetReader(DatasetReader):
                     # 左边是token 右边是tags 即 keep ，delete 一类,转化成token对象(allennlp 工作流程)
                     tokens = [Token(token) for token, tag in tokens_and_tags]
                     tags = [tag for token, tag in tokens_and_tags]
-                except ValueError: # 处理没有tag的异常
+                except ValueError:  # 处理没有tag的异常
                     tokens = [Token(token[0]) for token in tokens_and_tags]
                     tags = None
                 # 加上 $START
@@ -114,19 +115,20 @@ class Seq2LabelsDatasetReader(DatasetReader):
                     # 简单来说，就是当用到该instance才加载到内存，但也相当于是用时间换空间
                     yield instance
 
+    # 新加函数
     def extract_tags(self, tags: List[str]):
         op_del = self._delimeters['operations']
-
+        # 将多个label分开
         labels = [x.split(op_del) for x in tags]
         # 映射label个数的字典
         complex_flag_dict = {}
-        # get flags 统计至多由五个flag组成的改错方案
+        # 分别统计有一个label的有多少个，有两个label的有多少个。。。直到五个
         for i in range(5):
             idx = i + 1
             complex_flag_dict[idx] = sum([len(x) > idx for x in labels])
 
         if self._tag_strategy == "keep_one":
-            # get only first candidates for r_tags in right and the last for left 该策略只留第一个tag
+            # 该策略只留第一个tag，gector使用该策略
             labels = [x[0] for x in labels]
         elif self._tag_strategy == "merge_all":
             # consider phrases as a words
@@ -150,7 +152,7 @@ class Seq2LabelsDatasetReader(DatasetReader):
         sequence = TextField(tokens, self._token_indexers)
         # token域（field）
         fields["tokens"] = sequence
-        # 元数据域
+        # 元数据域 即为字符串类型的token
         fields["metadata"] = MetadataField({"words": words})
         if tags is not None:
             labels, detect_tags, complex_flag_dict = self.extract_tags(tags)
@@ -159,9 +161,10 @@ class Seq2LabelsDatasetReader(DatasetReader):
             rnd = random()
             # skip TN(真实负例是指无语法错误的句子)
             if self._skip_correct and all(x == "CORRECT" for x in detect_tags):
+                # 前两个阶段prob为0，所以默认跳过；最后一阶段为1，所以不可跳过
                 if rnd > self._tn_prob:
                     return None
-            # skip TP
+            # skip TP，gector中不允许跳过
             else:
                 if rnd > self._tp_prob:
                     return None

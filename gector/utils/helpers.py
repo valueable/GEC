@@ -65,7 +65,6 @@ def get_target_sent_by_edits(source_tokens, edits):
         elif label.startswith("$MERGE_"):
             target_tokens[target_pos + 1: target_pos + 1] = [label]
             shift_idx += 1
-
     return replace_merge_transforms(target_tokens)
 
 '''

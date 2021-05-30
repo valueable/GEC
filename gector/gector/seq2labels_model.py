@@ -1,4 +1,5 @@
 """Basic model. Predicts tags for every token"""
+# 参看源码simple tagger
 from typing import Dict, Optional, List, Any
 
 import numpy
@@ -73,7 +74,9 @@ class Seq2Labels(Model):
         # 关键字的名字要与构建vocab时的保持一致，所以用AllenNLP框架尽量这些名字都一致比较好
         self.num_labels_classes = self.vocab.get_vocab_size(labels_namespace)
         self.num_detect_classes = self.vocab.get_vocab_size(detect_namespace)
+        # 为0
         self.label_smoothing = label_smoothing
+        # 为0
         self.confidence = confidence
         self.incorr_index = self.vocab.get_token_index("INCORRECT",
                                                        namespace=detect_namespace)
@@ -150,6 +153,7 @@ class Seq2Labels(Model):
         error_probs = class_probabilities_d[:, :, self.incorr_index] * mask
         # 取最大值
         incorr_prob = torch.max(error_probs, dim=-1)[0]
+        # confidence为0，这里confidence会提高keep的概率
         if self.confidence > 0:
             # 形如 [confidence,0,...,0] 同时 注意index0是keep所以从confidence要在第一列
             probability_change = [self.confidence] + [0] * (self.num_labels_classes - 1)
@@ -184,7 +188,7 @@ class Seq2Labels(Model):
         Does a simple position-wise argmax over each token, converts indices to string labels, and
         adds a ``"tags"`` key to the dictionary with the result.
         """
-        # 取 d_tags, labels
+        # 取 d_tags, labels，将概率转为string
         for label_namespace in self.label_namespaces:
             all_predictions = output_dict[f'class_probabilities_{label_namespace}']
             all_predictions = all_predictions.cpu().data.numpy()
@@ -192,7 +196,7 @@ class Seq2Labels(Model):
             if all_predictions.ndim == 3:
                 predictions_list = [all_predictions[i] for i in range(all_predictions.shape[0])]
             else:
-                # [1, token_len, class_num]
+                # [token_len, class_num]
                 predictions_list = [all_predictions]
             all_tags = []
 

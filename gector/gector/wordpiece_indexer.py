@@ -1,4 +1,4 @@
-"""Tweaked version of corresponding AllenNLP file"""
+"""根据对应allennlp文件修改"""
 import logging
 from collections import defaultdict
 from typing import Dict, List, Callable
@@ -14,7 +14,6 @@ from gector.utils.helpers import START_TOKEN
 
 logger = logging.getLogger(__name__)
 
-# TODO(joelgrus): Figure out how to generate token_type_ids out of this token indexer.
 
 # This is the default list of tokens that should not be lowercased.
 _NEVER_LOWERCASE = ['[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]']
@@ -69,12 +68,14 @@ class WordpieceIndexer(TokenIndexer[int]):
 
     def __init__(self,
                  vocab: Dict[str, int],
+                 # 改动，引入bpe
                  bpe_ranks: Dict,
                  byte_encoder: Dict,
                  wordpiece_tokenizer: Callable[[str], List[str]],
                  namespace: str = "wordpiece",
                  use_starting_offsets: bool = False,
                  max_pieces: int = 512,
+                 # 改动，规定一个token至多分成三部分
                  max_pieces_per_token: int = 3,
                  is_test=False,
                  do_lowercase: bool = False,
@@ -98,12 +99,13 @@ class WordpieceIndexer(TokenIndexer[int]):
         self.use_starting_offsets = use_starting_offsets
         self._do_lowercase = do_lowercase
         self._truncate_long_sequences = truncate_long_sequences
+        # 避免用满显存并扩大batchsize
         self.max_pieces_per_sentence = 80
         self.is_test = is_test
         self.cache = {}
         self.bpe_ranks = bpe_ranks
         self.byte_encoder = byte_encoder
-
+        # evaluate时无需限制
         if self.is_test:
             self.max_pieces_per_token = None
 
@@ -124,6 +126,7 @@ class WordpieceIndexer(TokenIndexer[int]):
     @overrides
     def count_vocab_items(self, token: Token, counter: Dict[str, Dict[str, int]]):
         # If we only use pretrained models, we don't need to do anything here.
+        # 这里使用预训练模型，故不需要重写
         pass
 
     def _add_encoding_to_vocabulary(self, vocabulary: Vocabulary) -> None:
@@ -132,6 +135,9 @@ class WordpieceIndexer(TokenIndexer[int]):
             vocabulary._token_to_index[self._namespace][word] = idx
             vocabulary._index_to_token[self._namespace][idx] = word
 
+    # 以下是针对roberta用的bpe的实现
+    # 参考gpt-2的实现方式
+    # https://github.com/openai/gpt-2/blob/master/src/encoder.py
     def get_pairs(self, word):
         """Return set of symbol pairs in a word.
 
@@ -155,10 +161,12 @@ class WordpieceIndexer(TokenIndexer[int]):
             return token
 
         while True:
-            # 二元语言模型 其中dic(bpe_rank).get()的第二个参数是如果没有找到key的value，取的默认值 这里目的是取出出现频次最高的bigram
+            # 二元语言模型 其中dic(bpe_rank).get()的第二个参数是如果没有找到key的value，取的默认值
+            # 这里目的是取出出现频次最高（rank越小越高）的bigram
             bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair,
                                                                     float(
                                                                         'inf')))
+            # bigram不在词表
             if bigram not in self.bpe_ranks:
                 break
             first, second = bigram
@@ -181,14 +189,19 @@ class WordpieceIndexer(TokenIndexer[int]):
                     i += 1
             new_word = tuple(new_word)
             word = new_word
+            # 不可再分
             if len(word) == 1:
                 break
+            # 再重新分成pair
             else:
                 pairs = self.get_pairs(word)
         word = ' '.join(word)
+        # 构建映射
         self.cache[token] = word
         return word
 
+
+    # 参考源码中的encode模块
     def bpe_tokenize(self, text):
         """ Tokenize a string."""
         bpe_tokens = []
@@ -213,6 +226,7 @@ class WordpieceIndexer(TokenIndexer[int]):
                 for token in tokens)
 
         # Obtain a nested sequence of wordpieces, each represented by a list of wordpiece ids
+        # 先根据模型用不同分词方法，然后根据词表获取piece的id，并形成一个list
         token_wordpiece_ids = []
         for token in text:
             if self.bpe_ranks != {}:
@@ -228,12 +242,16 @@ class WordpieceIndexer(TokenIndexer[int]):
         # have a sequence length equal to the length of this list. However, it will first be split into
         # chunks of length `self.max_pieces` so that they can be fit through the model. After packing
         # and passing through the model, it should be unpacked to represent the wordpieces in this list.
+        # 先按照模型规定的最大大小分割成chunk，chunk间做标记，方便模型标记后再拼接回去
+        # 将上述的二维list转成一维
         flat_wordpiece_ids = [wordpiece for token in token_wordpiece_ids for wordpiece in token]
 
         # reduce max_pieces_per_token if piece length of sentence is bigger than max_pieces_per_sentence
         # helps to fix CUDA out of memory errors meanwhile increasing batch size
+        # 截取sentence
         while not self.is_test and len(flat_wordpiece_ids) > \
                 self.max_pieces_per_sentence - len(self._start_piece_ids) - len(self._end_piece_ids):
+            # 从最大token piece 递减式截取，直到满足最大长度限制
             max_pieces = max([len(row) for row in token_wordpiece_ids])
             token_wordpiece_ids = [row[:max_pieces - 1] for row in token_wordpiece_ids]
             flat_wordpiece_ids = [wordpiece for token in token_wordpiece_ids for wordpiece in token]
@@ -255,11 +273,12 @@ class WordpieceIndexer(TokenIndexer[int]):
 
         # Specify the stride to be half of `self.max_pieces`, minus any additional start/end wordpieces
         window_length = self.max_pieces - len(self._start_piece_ids) - len(self._end_piece_ids)
-        # stride 上下文窗口长度
+        # stride为上下文窗口长度的一半
         stride = window_length // 2
 
         # offsets[i] will give us the index into wordpiece_ids
         # for the wordpiece "corresponding to" the i-th input token.
+        # 第i个输入token的piece的id
         offsets = []
 
         # If we're using initial offsets, we want to start at offset = len(text_tokens)
@@ -270,8 +289,11 @@ class WordpieceIndexer(TokenIndexer[int]):
 
         for token in token_wordpiece_ids:
             # Truncate the sequence if specified, which depends on where the offsets are
+            # 这里使用start offset
+            # 一个是记录每个token的第一个piece的id，一个是记录最后一个piece的id
             next_offset = 1 if self.use_starting_offsets else 0
             if self._truncate_long_sequences and offset >= window_length + next_offset:
+                # 转入312行的截取部分
                 break
 
             # For initial offsets, the current value of ``offset`` is the start of
@@ -293,21 +315,22 @@ class WordpieceIndexer(TokenIndexer[int]):
                            "`truncate_long_sequences` to False %s", str([token.text for token in tokens]))
             wordpiece_windows = [self._add_start_and_end(flat_wordpiece_ids[:window_length])]
         else:
+            # 如果超过长度且不截取，这里gector直接截取了，所以下面的代码用不上。但是下面是allennlp自行的一个优化，可以学习下。
             # Create a sliding window of wordpieces of length `max_pieces` that advances by `stride` steps and
             # add start/end wordpieces to each window
-            # TODO: this currently does not respect word boundaries, so words may be cut in half between windows
             # However, this would increase complexity, as sequences would need to be padded/unpadded in the middle
+            # 这个解决办法和上面注释给出的例子一样，较容易理解
             wordpiece_windows = [self._add_start_and_end(flat_wordpiece_ids[i:i + window_length])
                                  for i in range(0, len(flat_wordpiece_ids), stride)]
 
             # Check for overlap in the last window. Throw it away if it is redundant.
             last_window = wordpiece_windows[-1][1:]
             penultimate_window = wordpiece_windows[-2]
-            # 丢弃多余的尾部
+            # 丢弃多余的尾部，例如[buy some milk [PAD][-2:] [milk [PAD]一致，这时需要把尾部删掉
             if last_window == penultimate_window[-len(last_window):]:
                 wordpiece_windows = wordpiece_windows[:-1]
 
-        # Flatten the wordpiece windows
+        # Flatten the wordpiece windows，再度转为一维list
         wordpiece_ids = [wordpiece for sequence in wordpiece_windows for wordpiece in sequence]
 
         # Our mask should correspond to the original tokens,
@@ -327,6 +350,7 @@ class WordpieceIndexer(TokenIndexer[int]):
     def _add_start_and_end(self, wordpiece_ids: List[int]) -> List[int]:
         return self._start_piece_ids + wordpiece_ids + self._end_piece_ids
 
+    # 没有用到，这里是配合采取Allennlp的窗口分割来使用的
     def _extend(self, token_type_ids: List[int]) -> List[int]:
         """
         Extend the token type ids by len(start_piece_ids) on the left
@@ -413,12 +437,12 @@ class PretrainedBertIndexer(WordpieceIndexer):
         elif pretrained_model.endswith("-uncased") and not do_lowercase:
             logger.warning("Your BERT model appears to be uncased, "
                            "but your indexer is not lowercasing tokens.")
-        # 获取预训练的tokenizer
+        # 获取预训练的tokenizer，因为使用了三个预训练模型
         bert_tokenizer = AutoTokenizer.from_pretrained(
                     pretrained_model, do_lower_case=do_lowercase, do_basic_tokenize=False)
 
-        # to adjust all tokenizers
-        # 只有roberta有encode ，其使用bpe编码， 与之对应的，其也有解码属性 decoder
+        # 下面的代码是为了 adjust all tokenizers
+        # 只有roberta有encoder ，其使用bpe编码， 与之对应的，其也有解码属性 decoder
         if hasattr(bert_tokenizer, 'encoder'):
             bert_tokenizer.vocab = bert_tokenizer.encoder
         # xlnet 使用的是sentence piece（sp_model）
@@ -427,7 +451,7 @@ class PretrainedBertIndexer(WordpieceIndexer):
             bert_tokenizer.vocab = defaultdict(lambda: 1)
             # 32000 tokens
             for i in range(bert_tokenizer.sp_model.get_piece_size()):
-                # key piece value index
+                # key：piece value： index
                 bert_tokenizer.vocab[bert_tokenizer.sp_model.id_to_piece(i)] = i
         # 只有roberta的special_token_fix 为1, 使用<s> </s>分割； xlnet和bert用[cls], [sep]
         if special_tokens_fix:

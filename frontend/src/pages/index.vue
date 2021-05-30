@@ -13,7 +13,7 @@
   type="textarea"
   placeholder="请输入内容"
   v-model="error_sentence"
-  maxlength="300"
+  maxlength="500"
   show-word-limit
   :rows="10"
   style="font-size: 20px;color: #3a8ee6"

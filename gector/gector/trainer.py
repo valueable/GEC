@@ -561,8 +561,10 @@ class Trainer(TrainerBase):
         # 同时需要注意，在cold step阶段也要使用cold lr，
         # 此阶段结束后，使用base lr
         if self.cold_step_count > 0:
+            # 1e-5
             base_lr = self.optimizer.param_groups[0]['lr']
             for param_group in self.optimizer.param_groups:
+                # 1e-3
                 param_group['lr'] = self.cold_lr
             self.model.text_field_embedder._token_embedders['bert'].set_weights(freeze=True)
 

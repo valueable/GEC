@@ -343,6 +343,8 @@ class GecBERTModel(object):
                     all_dics['REPLACE'].append(token+' -> '+sugg_token.split('_', 1)[1])
                 elif sugg_token.startswith('$TRANSFORM'):
                     modify = apply_reverse_transformation(token, sugg_token)
+                    if modify is None:
+                        continue
                     if sugg_token.startswith("$TRANSFORM_CASE"):
                         all_dics['CASE'].append(token+' -> '+modify)
                     # deal with verb
@@ -381,7 +383,6 @@ class GecBERTModel(object):
             if not sequences:
                 break
             probabilities, idxs, error_probs = self.predict(sequences)
-
             pred_batch, edit, all_dics = self.postprocess_batch(orig_batch, probabilities,
                                                 idxs, error_probs, spell)
             for key, value in all_dics.items():

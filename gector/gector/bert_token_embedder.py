@@ -1,4 +1,5 @@
 """Tweaked version of corresponding AllenNLP file"""
+# allennlp同名文件源码修改
 import logging
 from copy import deepcopy
 from typing import Dict
@@ -18,7 +19,7 @@ class PretrainedBertModel:
     (e.g. to use as a token embedder and also as a pooling layer).
     This factory provides a cache so that you don't actually have to load the model twice.
     """
-
+    # 缓存机制，同一个模型无需load两次
     _cache: Dict[str, PreTrainedModel] = {}
     @classmethod
     # cls本质上类似于构造函数 cls是load的一个子类 可以将全局属性当作自己的属性
@@ -82,6 +83,7 @@ class BertEmbedder(TokenEmbedder):
         self._scalar_mix = None
 
     def set_weights(self, freeze):
+        # 如果freeze，参数不需要计算梯度，即不更新
         for param in self.bert_model.parameters():
             param.requires_grad = not freeze
         return
@@ -114,11 +116,11 @@ class BertEmbedder(TokenEmbedder):
             per token. If offsets are not provided, the entire tensor of wordpiece embeddings
             will be returned.
         """
-
+        # offsets对应indexer里面的，gector使用start法。
+        # 即offsets记录着每个token的第一个wordpiece在整句wordpiece list中index
         batch_size, full_seq_len = input_ids.size(0), input_ids.size(-1)
-        # 除了最后一个维度都取
+        # 取出batch size
         initial_dims = list(input_ids.shape[:-1])
-
         # The embedder may receive an input tensor that has a sequence length longer than can
         # be fit. In that case, we should expect the wordpiece indexer to create padded windows
         # of length `self.max_pieces` for us, and have them concatenated into one long sequence.
@@ -132,18 +134,20 @@ class BertEmbedder(TokenEmbedder):
         last_window_size = 0
         if needs_split:
             # Split the flattened list by the window size, `max_pieces`
+            # 按照最大piece切分输入
             split_input_ids = list(input_ids.split(self.max_pieces, dim=-1))
 
             # We want all sequences to be the same length, so pad the last sequence
-            # 填充列
+            # 最后一列根据需要填充
             last_window_size = split_input_ids[-1].size(-1)
             padding_amount = self.max_pieces - last_window_size
             # 用0填充列
             split_input_ids[-1] = F.pad(split_input_ids[-1], pad=[0, padding_amount], value=0)
 
-            # Now combine the sequences along the batch dimension 竖着拼接
+            # Now combine the sequences along the batch dimension
+            # 沿着batch维拼接上
             input_ids = torch.cat(split_input_ids, dim=0)
-        # 即为attention机制中的pad mask 防止注意力集中在我们为了对齐而填充的0上面
+        # 即为attention机制中的pad mask 防止注意力集中在填充的0上面
         input_mask = (input_ids != 0).long()
         # input_ids may have extra dimensions, so we reshape down to 2-d
         # before calling the BERT model and then reshape back at the end.
@@ -153,20 +157,19 @@ class BertEmbedder(TokenEmbedder):
         – Sequence of hidden-states at the output of the last layer of the model.
         '''
         all_encoder_layers = self.bert_model(
-            input_ids=util.combine_initial_dims(input_ids),
+            input_ids=util.combine_initial_dims(input_ids), # 转为二维
             attention_mask=util.combine_initial_dims(input_mask),
         )[0]
-        # 由二维转变为三维
+        # 确保是四维
         if len(all_encoder_layers[0].shape) == 3:
             all_encoder_layers = torch.stack(all_encoder_layers)
         elif len(all_encoder_layers[0].shape) == 2:
             all_encoder_layers = torch.unsqueeze(all_encoder_layers, dim=0)
-
         if needs_split:  # 这个操作是因为输入的seq长度大于maxpiece 现在要做的是首先将其拆分为一个list的多个元素，将截取的句子还原
             # First, unpack the output embeddings into one long sequence again 行拆分 列拼接
-            # 这步做的是把数据拆分成一个list，list每个元素又是list，一共有seqlen/batchsize个list
+            # 这步做的是把数据拆沿着batch维度分成一个list，有原batch size个元素，将这些元素再拼接，就可以还原原数据
             unpacked_embeddings = torch.split(all_encoder_layers, batch_size, dim=1)
-            # 然后要做的是将seqlen/batchsize个list按照列进行拼接，最终形成一个list。该list维度为 batch * row/batch * col*batch
+            # 然后要做的是将batch size个list按照最后embedding维进行拼接，最终形成一个维度为 1 * batch * full_seq_len * embed
             unpacked_embeddings = torch.cat(unpacked_embeddings, dim=2)
 
             # Next, select indices of the sequence such that it will result in embeddings representing the original
@@ -182,9 +185,9 @@ class BertEmbedder(TokenEmbedder):
             # 寻找最能代表文本（即中间位置的跨步stride）
             stride = (self.max_pieces - self.num_start_tokens - self.num_end_tokens) // 2
             stride_offset = stride // 2 + self.num_start_tokens
-
+            # 开头的部分
             first_window = list(range(stride_offset))
-            # 对应于 注释中的 2 3 4 10 11 12 表示的是一个能代表一句话的上下文窗口
+            # 选择中间的 stride个wordpiece
 
             max_context_windows = [
                 i
@@ -197,14 +200,14 @@ class BertEmbedder(TokenEmbedder):
                 lookback = self.max_pieces
             else:
                 lookback = full_seq_len % self.max_pieces
-            # 确定index选择区间
+            # 尾部
             final_window_start = full_seq_len - lookback + stride_offset + stride
             final_window = list(range(final_window_start, full_seq_len))
-
+            # 头 + 中间index + 尾
             select_indices = first_window + max_context_windows + final_window
             # 这时候将最后一维加入list中
             initial_dims.append(len(select_indices))
-
+            # 选择一个句子中的一部分token作为表示
             recombined_embeddings = unpacked_embeddings[:, :, select_indices]
         else:
             recombined_embeddings = all_encoder_layers
@@ -212,7 +215,7 @@ class BertEmbedder(TokenEmbedder):
         # Recombine the outputs of all layers
         # (layers, batch_size * d1 * ... * dn, sequence_length, embedding_dim)
         # recombined = torch.cat(combined, dim=2)
-        # 同上
+        # mask同上
         input_mask = (recombined_embeddings != 0).long()
 
         if self._scalar_mix is not None:
@@ -230,13 +233,14 @@ class BertEmbedder(TokenEmbedder):
             # offsets 在gec_model 中的preprocess函数里面生成的，维度为[batch_size, seq_len]
             offsets2d = util.combine_initial_dims(offsets)
             # now offsets is [batch_size, seq_len]
+            # rangevector返回一个tensor，如offsets2d.size(0)=5 返回 [0,1,2,3,4]
             range_vector = util.get_range_vector(
                 offsets2d.size(0), device=util.get_device_of(mix)
             ).unsqueeze(1)
             # selected embeddings is also (batch_size * d1 * ... * dn, orig_sequence_length)
-            # 这里是选择最后一列用作embed的部分
+            # 这里是给每个token选择offsets记录的它的wordpiece的idx去代替它
             selected_embeddings = mix[range_vector, offsets2d]
-            # return the reshaped tensor of embeddings with shape (d1, ..., dn, sequence_length, embedding_dim)
+            # return the reshaped tensor of embeddings with shape (d1, ..., dn, orig_sequence_length, embedding_dim)
             # If original size is 1-d or 2-d, return it as is.
             # 这里直接返回selected embedings
             return util.uncombine_initial_dims(selected_embeddings, offsets.size())
@@ -272,7 +276,7 @@ class PretrainedBertEmbedder(BertEmbedder):
         special_tokens_fix: int = 0,
     ) -> None:
         model = PretrainedBertModel.load(pretrained_model)
-        # 需要计算梯度则参数随train更新
+        # 需要计算梯度则参数随train更新,全阶段为true
         for param in model.parameters():
             param.requires_grad = requires_grad
 
@@ -280,7 +284,7 @@ class PretrainedBertEmbedder(BertEmbedder):
             bert_model=model,
             top_layer_only=top_layer_only
         )
-        # 针对roberta
+        # 针对roberta，因为给其加了一个START
         if special_tokens_fix:
             try:
                 vocab_size = self.bert_model.embeddings.word_embeddings.num_embeddings

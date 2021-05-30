@@ -38,6 +38,7 @@ def fix_seed():
 
 
 def get_token_indexers(model_name, max_pieces_per_token=5, lowercase_tokens=True, special_tokens_fix=0, is_test=False):
+    # 针对不同模型使用不同的分词方法，并按需要截取，最后返回通过词表转化成的id
     bert_token_indexer = PretrainedBertIndexer(
         pretrained_model=model_name,
         max_pieces_per_token=max_pieces_per_token,
@@ -109,7 +110,7 @@ def main(args):
         os.mkdir(args.model_dir)
     # 从预训练模型中获取权重（xlnet，bert，roberta）
     weights_name = get_weights_name(args.transformer_model, args.lowercase_tokens)
-    # read datasets 返回的是instance
+    # read datasets 返回的是instance，需要将预定义的indexer放入instance的子部分：fields中
     reader = get_data_reader(weights_name, args.max_len, skip_correct=bool(args.skip_correct),
                              skip_complex=args.skip_complex,
                              test_mode=False,
@@ -165,6 +166,7 @@ def main(args):
     # 当metrics不再增长时降低学习率
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.1, patience=10)
+    # 梯度累计变相扩大batch
     instances_per_epoch = None if not args.updates_per_epoch else \
         int(args.updates_per_epoch * args.batch_size * args.accumulation_size)
     # 负责产生batch，同时让长度相近的文本放在一起，减少文本填充， 提高速度
@@ -174,7 +176,7 @@ def main(args):
                               max_instances_in_memory=args.batch_size * 20000,
                               instances_per_epoch=instances_per_epoch,
                               )
-    # 由于token indexer是在datasetreader初始化时指定，而词表需要token indexer才可构建，此处为了解决这个依赖性问题
+    # 指定词表
     iterator.index_with(vocab)
     trainer = Trainer(model=model,
                       optimizer=optimizer,
